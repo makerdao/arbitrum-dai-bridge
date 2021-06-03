@@ -1,0 +1,23 @@
+// NOTE: the easieast way to update this config is to run dockerized optimism locally and head to: http://localhost:8080/addresses.json
+export const optimismConfig = {
+  AddressManager: '0x5FbDB2315678afecb367f032d93F642f64180aa3',
+  OVM_CanonicalTransactionChain: '0xA51c1fc2f0D1a1b8494Ed1FE312d7C3a78Ed91C0',
+  'OVM_ChainStorageContainer:CTC:batches': '0x0165878A594ca255338adfa4d48449f69242Eb8F',
+  'OVM_ChainStorageContainer:CTC:queue': '0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6',
+  'OVM_ChainStorageContainer:SCC:batches': '0x610178dA211FEF7D417bC0e6FeD39F05609AD788',
+  OVM_ExecutionManager: '0xa85233C63b9Ee964Add6F2cffe00Fd84eb32338f',
+  OVM_FraudVerifier: '0x7a2088a1bFc9d81c55368AE168C2C02570cB814F',
+  OVM_L1CrossDomainMessenger: '0x68B1D87F95878fE05B998F19b66F4baba5De1aed',
+  OVM_L1ETHGateway: '0x851356ae760d987E095750cCeb3bC6014560891C',
+  OVM_L1MultiMessageRelayer: '0xa82fF9aFd8f496c3d6ac40E2a0F282E47488CFc9',
+  OVM_SafetyChecker: '0x84eA74d481Ee0A5332c457a4d796187F6Ba67fEB',
+  OVM_StateCommitmentChain: '0x9A676e781A523b5d0C0e43731313A708CB607508',
+  OVM_StateManagerFactory: '0xc5a5C42992dECbae36851359345FE25997F5C42d',
+  OVM_StateTransitionerFactory: '0xE6E340D132b5f46d1e472DebcD681B2aBc16e57E',
+  Proxy__OVM_L1CrossDomainMessenger: '0x59b670e9fA9D0A427751Af201D676719a970857b',
+  Proxy__OVM_L1ETHGateway: '0x998abeb3E57409262aE5b751f60747921B33613E',
+  OVM_BondManager: '0x959922bE3CAee4b8Cd9a407cc3ac1C251C2007B1',
+  OVM_Sequencer: '0x70997970C51812dc3A010C7d01b50e0d17dc79C8',
+  Deployer: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+  _L2_OVM_L2CrossDomainMessenger: '0x4200000000000000000000000000000000000007',
+}
