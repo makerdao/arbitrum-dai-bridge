@@ -19,28 +19,29 @@
 pragma solidity ^0.6.11;
 
 import "arb-bridge-eth/contracts/bridge/interfaces/IInbox.sol";
-import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "arb-bridge-peripherals/contracts/tokenbridge/ethereum/gateway/L1ArbitrumExtendedGateway.sol";
 
+interface TokenLike {
+  function transferFrom(address _from, address _to, uint256 _value) external returns (bool success);
+}
+
 contract L1DaiGateway is L1ArbitrumExtendedGateway {
-    using SafeERC20 for IERC20;
+    address immutable public l1Dai;
+    address immutable public l2Dai;
+    address immutable public l1Escrow;
 
-    address public l1Weth;
-    address public l2Weth;
-
-    function initialize(
+    constructor(
         address _l1Counterpart,
         address _l1Router,
         address _inbox,
-        address _l1Weth,
-        address _l2Weth
-    ) public virtual {
+        address _l1Dai,
+        address _l2Dai,
+        address _l1Escrow
+    ) public {
         L1ArbitrumExtendedGateway._initialize(_l1Counterpart, _l1Router, _inbox);
-        require(_l1Weth != address(0), "INVALID_L1WETH");
-        require(_l2Weth != address(0), "INVALID_L2WETH");
-        l1Weth = _l1Weth;
-        l2Weth = _l2Weth;
+        l1Dai = _l1Dai;
+        l2Dai = _l2Dai;
+        l1Escrow = _l1Escrow;
     }
 
     function createOutboundTx(
@@ -76,7 +77,7 @@ contract L1DaiGateway is L1ArbitrumExtendedGateway {
     ) internal virtual override returns (uint256) {
         // msg.value does not include weth withdrawn from user, we need to add in that amount
         uint256 seqNum =
-            IInbox(_inbox).createRetryableTicket{ value: msg.value + _l2CallValue }(
+            IInbox(_inbox).createRetryableTicket(
                 _to,
                 _l2CallValue,
                 _maxSubmissionCost,
@@ -95,8 +96,7 @@ contract L1DaiGateway is L1ArbitrumExtendedGateway {
         address _from,
         uint256 _amount
     ) internal virtual override {
-        IERC20(_l1Token).safeTransferFrom(_from, address(this), _amount);
-        // IWETH9(_l1Token).withdraw(_amount);
+        TokenLike(_l1Token).transferFrom(_from, l1Escrow, _amount);
     }
 
     function inboundEscrowTransfer(
@@ -104,8 +104,7 @@ contract L1DaiGateway is L1ArbitrumExtendedGateway {
         address _dest,
         uint256 _amount
     ) internal virtual override {
-        // IWETH9(_l1Token).deposit{ value: _amount }();
-        IERC20(_l1Token).safeTransfer(_dest, _amount);
+        TokenLike(_l1Token).transferFrom(l1Escrow, _dest, _amount);
     }
 
     /**
@@ -122,9 +121,7 @@ contract L1DaiGateway is L1ArbitrumExtendedGateway {
         override
         returns (address)
     {
-        require(l1ERC20 == l1Weth, "WRONG_L1WETH");
-        return l2Weth;
+        require(l1ERC20 == l1Dai, "WRONG_l1Dai");
+        return l2Dai;
     }
-
-    receive() external payable {}
 }
