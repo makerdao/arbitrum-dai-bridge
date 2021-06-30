@@ -22,23 +22,26 @@ import "arb-bridge-peripherals/contracts/tokenbridge/arbitrum/gateway/L2Arbitrum
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
+interface Mintable {
+  function mint(address usr, uint256 wad) external;
+  function burn(address usr, uint256 wad) external;
+}
+
 contract L2DaiGateway is L2ArbitrumGateway {
     using SafeERC20 for IERC20;
 
-    address public l1Weth;
-    address public l2Weth;
+    address immutable public l1Dai;
+    address immutable public l2Dai;
 
-    function initialize(
+    constructor(
         address _l1Counterpart,
         address _router,
-        address _l1Weth,
-        address _l2Weth
-    ) public virtual {
+        address _l1Dai,
+        address _l2Dai
+    ) public {
         L2ArbitrumGateway._initialize(_l1Counterpart, _router);
-        require(_l1Weth != address(0), "INVALID_L1WETH");
-        require(_l2Weth != address(0), "INVALID_L2WETH");
-        l1Weth = _l1Weth;
-        l2Weth = _l2Weth;
+        l1Dai = _l1Dai;
+        l2Dai = _l2Dai;
     }
 
     /**
@@ -75,8 +78,8 @@ contract L2DaiGateway is L2ArbitrumGateway {
         override
         returns (address)
     {
-        require(l1ERC20 == l1Weth, "WRONG_L1WETH");
-        return l2Weth;
+        require(l1ERC20 == l1Dai, "WRONG_L1Dai");
+        return l2Dai;
     }
 
     function inboundEscrowTransfer(
@@ -84,8 +87,16 @@ contract L2DaiGateway is L2ArbitrumGateway {
         address _dest,
         uint256 _amount
     ) internal virtual override {
-        // IWETH9(_l2TokenAddress).deposit{ value: _amount }();
-        IERC20(_l2TokenAddress).safeTransfer(_dest, _amount);
+        Mintable(_l2TokenAddress).mint(_dest, _amount);
+    }
+
+    function outboundEscrowTransfer(
+        address _l2Token,
+        address _from,
+        uint256 _amount
+    ) internal virtual override {
+        // burns L2 tokens in order to release escrowed L1 tokens
+        Mintable(_l2Token).burn(_from, _amount);
     }
 
     function createOutboundTx(
@@ -108,6 +119,4 @@ contract L2DaiGateway is L2ArbitrumGateway {
         // of the "onTokenTransfer" call consumes all available gas
         return 5000;
     }
-
-    receive() external payable {}
 }
