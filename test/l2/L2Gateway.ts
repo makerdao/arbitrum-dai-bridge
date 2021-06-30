@@ -3,7 +3,7 @@ import { expect } from 'chai'
 import { ethers } from 'hardhat'
 
 import { Dai__factory, L1Gateway__factory, L2Gateway__factory } from '../../typechain'
-import { deploy, deployArbitrumContractMock, deployMock, getRandomAddresses } from '../helpers'
+import { deploy, deployArbitrumContractMock, getRandomAddresses } from '../helpers'
 
 const errorMessages = {
   invalidMessenger: 'OVM_XCHAIN: messenger contract unauthenticated',
