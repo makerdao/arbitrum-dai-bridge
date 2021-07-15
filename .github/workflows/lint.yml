@@ -14,11 +14,13 @@ jobs:
     steps:
       - name: Check out Git repository
         uses: actions/checkout@v2
+        with:
+          submodules: recursive
 
       - name: Set up node
         uses: actions/setup-node@v2
         with:
-          node-version: 10.x
+          node-version: 12.x
 
       - name: Get yarn cache directory path
         id: yarn-cache-dir-path
