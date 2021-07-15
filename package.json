@@ -7,5 +7,13 @@
     "packages/arbitrum/packages/arb-bridge-eth",
     "packages/arbitrum/packages/arb-bridge-peripherals",
     "packages/arbitrum/packages/arb-os/contracts"
-  ]
+  ],
+  "scripts": {
+    "build": "yarn workspace bridge build",
+    "typecheck": "yarn workspace bridge typecheck",
+    "lint": "yarn workspace bridge lint",
+    "format": "yarn workspace bridge format",
+    "test": "yarn workspace bridge test",
+    "test:fix": "yarn workspace bridge test:fix"
+  }
 }

@@ -10,7 +10,8 @@
     "lint": "eslint --ext .ts test hardhat.config.ts",
     "lint:fix": "yarn lint --fix",
     "typecheck": "tsc --noEmit",
-    "test": "hardhat test",
+    "test": "yarn test:unit && yarn test-arbitrum",
+    "test:unit": "hardhat test",
     "test-arbitrum": "TESTS_DIR=test-arbitrum-suite hardhat test",
     "test-e2e": "mocha --config .mocharc-e2e.js",
     "test:fix": "yarn lint:fix && yarn format:fix && yarn test && yarn typecheck"

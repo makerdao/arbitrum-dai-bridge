@@ -14,6 +14,8 @@ jobs:
     steps:
       - name: Check out Git repository
         uses: actions/checkout@v2
+        with:
+          submodules: recursive
 
       - name: Set up node
         uses: actions/setup-node@v2
@@ -35,51 +37,4 @@ jobs:
       - run: yarn --no-progress --non-interactive --frozen-lockfile
 
       - run: yarn build
-      - run: REPORT_GAS=1 yarn test
-      - run: yarn codechecks # compares gas report
-        env: # Or as an environment variable
-          CC_SECRET: ${{ secrets.CC_SECRET }}
-
-  test-e2e:
-    name: Tests E2E
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Check out Git repository
-        uses: actions/checkout@v2
-
-      - name: Set up node
-        uses: actions/setup-node@v2
-        with:
-          node-version: 10.x
-
-      - name: Get yarn cache directory path
-        id: yarn-cache-dir-path
-        run: echo "::set-output name=dir::$(yarn cache dir)"
-
-      - name: Cache YARN dependencies
-        uses: actions/cache@v2
-        with:
-          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
-          key: yarn-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: |
-            yarn-
-
-      - name: Install Dependencies
-        run: yarn --no-progress --non-interactive --frozen-lockfile
-
-      - run: yarn build
-      - run: |
-          git clone https://github.com/ethereum-optimism/optimism.git
-          cd optimism
-          git checkout 52d9e6b73362a203bdae3fa0182bd6e7c9693b13
-          cd ops
-          export COMPOSE_DOCKER_CLI_BUILD=1
-          export DOCKER_BUILDKIT=1
-          docker-compose build
-          docker-compose up -d
-
-          cd ../../
-          ./.github/workflows/wait-for-it.sh -h localhost -p 8080 -t 120
-          sleep 60 # we still need to wait for contracts to be deployed really
-          yarn test-e2e
+      - run: yarn test
