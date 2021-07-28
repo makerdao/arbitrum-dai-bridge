@@ -63,9 +63,44 @@ describe('L1DaiGateway', () => {
   })
 
   describe('finalizeInboundTransfer', () => {
-    const _withdrawAmount = 100
+    const withdrawAmount = 100
 
-    it('sends funds from the escrow')
+    it('sends funds from the escrow', async () => {
+      const defaultWithdrawData = ethers.utils.defaultAbiCoder.encode(['uint256', 'bytes'], [1, '0x'])
+
+      const [
+        _deployer,
+        inboxImpersonator,
+        l1EscrowEOA,
+        l2DaiGatewayEOA,
+        routerEOA,
+        bridgeImpersonator,
+        outboxImpersonator,
+        user1,
+      ] = await ethers.getSigners()
+      const { l1Dai, outboxMock, l1DaiGateway } = await setupWithdrawalTest({
+        inboxImpersonator,
+        l1Escrow: l1EscrowEOA,
+        l2DaiGateway: l2DaiGatewayEOA,
+        router: routerEOA,
+        user1,
+        bridgeImpersonator,
+        outboxImpersonator,
+      })
+      outboxMock.smocked.l2ToL1Sender.will.return.with(() => l2DaiGatewayEOA.address)
+
+      const finalizeWithdrawalTx = await l1DaiGateway
+        .connect(outboxImpersonator)
+        .finalizeInboundTransfer(l1Dai.address, user1.address, user1.address, withdrawAmount, defaultWithdrawData)
+
+      expect(await l1Dai.balanceOf(user1.address)).to.be.equal(withdrawAmount)
+      expect(await l1Dai.balanceOf(l1EscrowEOA.address)).to.be.equal(initialTotalL1Supply - withdrawAmount)
+      const expectedTransferId = 1
+      await expect(finalizeWithdrawalTx)
+        .to.emit(l1DaiGateway, 'InboundTransferFinalized')
+        .withArgs(l1Dai.address, user1.address, user1.address, expectedTransferId, depositAmount, defaultWithdrawData)
+    })
+
     it('sends funds from the escrow to the 3rd party')
     // pending withdrawals MUST success even if bridge is closed
     it('completes withdrawals even when closed')
@@ -122,10 +157,41 @@ async function setupTest(signers: {
     signers.l1Escrow.address,
   ])
 
+  await l1Dai.connect(signers.l1Escrow).approve(l1DaiGateway.address, ethers.constants.MaxUint256)
+
   return {
     l1Dai,
     l2Dai,
     l1DaiGateway,
     inboxMock,
   }
+}
+
+async function setupWithdrawalTest(signers: {
+  router: SignerWithAddress
+  l2DaiGateway: SignerWithAddress
+  inboxImpersonator: SignerWithAddress
+  l1Escrow: SignerWithAddress
+  user1: SignerWithAddress
+  bridgeImpersonator: SignerWithAddress
+  outboxImpersonator: SignerWithAddress
+}) {
+  const harness = await setupTest(signers)
+
+  const bridgeMock = await deployArbitrumContractMock('Bridge', {
+    address: await signers.bridgeImpersonator.getAddress(),
+  })
+  const outboxMock = await deployArbitrumContractMock('Outbox', {
+    address: await signers.outboxImpersonator.getAddress(),
+  })
+
+  const allContracts = { ...harness, bridgeMock, outboxMock }
+
+  allContracts.inboxMock.smocked.bridge.will.return.with(bridgeMock.address)
+  allContracts.bridgeMock.smocked.activeOutbox.will.return.with(outboxMock.address)
+
+  // move all DAI to the escrow so withdrawals work
+  await allContracts.l1Dai.connect(signers.user1).transfer(signers.l1Escrow.address, initialTotalL1Supply)
+
+  return allContracts
 }
