@@ -31,14 +31,14 @@ contract L1DaiGateway is L1ArbitrumExtendedGateway {
     address immutable public l1Escrow;
 
     constructor(
-        address _l1Counterpart,
+        address _l2Counterpart,
         address _l1Router,
         address _inbox,
         address _l1Dai,
         address _l2Dai,
         address _l1Escrow
     ) public {
-        L1ArbitrumExtendedGateway._initialize(_l1Counterpart, _l1Router, _inbox);
+        L1ArbitrumExtendedGateway._initialize(_l2Counterpart, _l1Router, _inbox);
         l1Dai = _l1Dai;
         l2Dai = _l2Dai;
         l1Escrow = _l1Escrow;
