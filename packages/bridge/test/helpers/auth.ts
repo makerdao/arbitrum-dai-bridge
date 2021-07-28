@@ -23,7 +23,10 @@ export function testAuth(
   name: string,
   getDeployArgs: () => Promise<any[]>,
   authedMethods: Array<(contract: any) => Promise<any>>,
+  strictErrorMsgs: boolean = true,
 ) {
+  const expectedErrorMsg = strictErrorMsgs ? `${name}/not-authorized` : `/not-authorized`
+
   describe('auth', () => {
     async function deploy() {
       const [deployer] = await ethers.getSigners()
@@ -70,8 +73,8 @@ export function testAuth(
       const [_, unauthorized] = await ethers.getSigners()
       const randomAddress = await getRandomAddress()
 
-      await expect(contract.connect(unauthorized).rely(randomAddress)).to.be.revertedWith(`${name}/not-authorized`)
-      await expect(contract.connect(unauthorized).deny(randomAddress)).to.be.revertedWith(`${name}/not-authorized`)
+      await expect(contract.connect(unauthorized).rely(randomAddress)).to.be.revertedWith(expectedErrorMsg)
+      await expect(contract.connect(unauthorized).deny(randomAddress)).to.be.revertedWith(expectedErrorMsg)
     })
 
     it('only a ward can run authed methods', async () => {
@@ -81,7 +84,7 @@ export function testAuth(
       const contractWithUnauthorizedSigner = contract.connect(unauthorized)
 
       for (const authedMethod of authedMethods) {
-        await expect(authedMethod(contractWithUnauthorizedSigner)).to.be.revertedWith(`${name}/not-authorized`)
+        await expect(authedMethod(contractWithUnauthorizedSigner)).to.be.revertedWith(expectedErrorMsg)
       }
     })
   })
