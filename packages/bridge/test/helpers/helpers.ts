@@ -59,6 +59,6 @@ export async function deployArbitrumContractMock<T extends ContractFactory>(
   } = {},
 ): Promise<ReturnType<T['deploy']> & { smocked: any }> {
   const artifact = JSON.parse(readFileSync(join(__dirname, `./test-artifacts/${name}.json`), 'utf-8'))
-  const factory = new ethers.ContractFactory(artifact.abi, artifact.bytecode) as any
+  const factory = new ethers.ContractFactory(artifact.abi, artifact.bytecode ?? '0x') as any
   return await smockit(factory, opts)
 }

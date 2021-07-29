@@ -94,13 +94,15 @@ describe('L2DaiGateway', () => {
   it('has correct public interface', async () => {
     // @todo missing close & auth interface
     await assertPublicMethods('L2DaiGateway', [
-      'finalizeInboundTransfer(address,address,address,uint256,bytes)',
-      'inboundEscrowAndCall(address,uint256,address,address,bytes)',
-      'outboundTransfer(address,address,uint256,bytes)',
-      'outboundTransfer(address,address,uint256,uint256,uint256,bytes)',
+      'finalizeInboundTransfer(address,address,address,uint256,bytes)', // finalize deposit
+      'outboundTransfer(address,address,uint256,bytes)', // withdraw
+      'outboundTransfer(address,address,uint256,uint256,uint256,bytes)', // withdrawTo
+      'inboundEscrowAndCall(address,uint256,address,address,bytes)', // not really public
       'postUpgradeInit()', // @todo not sure why this one is needed
     ])
   })
+
+  it('implements auth')
 })
 
 async function setupTest(signers: {
