@@ -1,61 +1,133 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/dist/src/signer-with-address'
 import { expect } from 'chai'
+import { defaultAbiCoder } from 'ethers/lib/utils'
 import { ethers } from 'hardhat'
 
 import { ArbDai__factory, Dai__factory, L1DaiGateway__factory, L2DaiGateway__factory } from '../../typechain'
 import { assertPublicMethods, deploy, deployArbitrumContractMock } from '../helpers/helpers'
 
 const initialTotalL1Supply = 3000
-const depositAmount = 100
-const defaultGas = 0
-const defaultData = ethers.utils.defaultAbiCoder.encode(['bytes', 'bytes'], ['0x', '0x'])
+const errorMessages = {
+  tokenMismatch: 'L1DaiGateway/token-not-dai',
+}
 
 describe('L1DaiGateway', () => {
   describe('outboundTransfer()', () => {
+    const depositAmount = 100
+    const defaultGas = 42
+    const maxSubmissionCost = 7
+    const callHookData = '0x12'
+    const defaultData = defaultAbiCoder.encode(['uint256', 'bytes'], [maxSubmissionCost, callHookData])
+
     it('escrows funds and sends xchain message', async () => {
-      const [_deployer, inboxImpersonator, l1EscrowEOA, l2DaiGatewayEOA, routerEOA, user1] = await ethers.getSigners()
+      const [_deployer, inboxImpersonator, l1EscrowEOA, l2DaiGatewayEOA, routerEOA, sender] = await ethers.getSigners()
       const { l1Dai, inboxMock, l1DaiGateway } = await setupTest({
         inboxImpersonator,
         l1Escrow: l1EscrowEOA,
         l2DaiGateway: l2DaiGatewayEOA,
         router: routerEOA,
-        user1: user1,
+        user1: sender,
       })
 
-      await l1Dai.connect(user1).approve(l1DaiGateway.address, depositAmount)
+      await l1Dai.connect(sender).approve(l1DaiGateway.address, depositAmount)
       const depositTx = await l1DaiGateway
-        .connect(user1)
-        .outboundTransfer(l1Dai.address, user1.address, depositAmount, defaultGas, 0, defaultData)
+        .connect(sender)
+        .outboundTransfer(l1Dai.address, sender.address, depositAmount, defaultGas, 0, defaultData)
       const depositCallToMessengerCall = inboxMock.smocked.createRetryableTicket.calls[0]
 
-      expect(await l1Dai.balanceOf(user1.address)).to.be.eq(initialTotalL1Supply - depositAmount)
+      const expectedDepositId = 0
+      const l2EncodedData = defaultAbiCoder.encode(['bytes', 'bytes'], ['0x', callHookData])
+      const expectedDepositXDomainCallData = new L2DaiGateway__factory().interface.encodeFunctionData(
+        'finalizeInboundTransfer',
+        [l1Dai.address, sender.address, sender.address, depositAmount, l2EncodedData],
+      )
+
+      expect(await l1Dai.balanceOf(sender.address)).to.be.eq(initialTotalL1Supply - depositAmount)
       expect(await l1Dai.balanceOf(l1DaiGateway.address)).to.be.eq(0)
       expect(await l1Dai.balanceOf(l1EscrowEOA.address)).to.be.eq(depositAmount)
 
-      const expectedDepositId = 0
-      const expectedDepositXDomainCallData = new L2DaiGateway__factory().interface.encodeFunctionData(
-        'finalizeInboundTransfer',
-        [l1Dai.address, user1.address, user1.address, depositAmount, defaultData],
-      )
       expect(depositCallToMessengerCall.destAddr).to.equal(l2DaiGatewayEOA.address)
       expect(depositCallToMessengerCall.l2CallValue).to.equal(0)
-      expect(depositCallToMessengerCall.maxSubmissionCost).to.equal(0x40) //whats this?
-      expect(depositCallToMessengerCall.excessFeeRefundAddress).to.equal(user1.address)
-      expect(depositCallToMessengerCall.callValueRefundAddress).to.equal(user1.address)
+      expect(depositCallToMessengerCall.maxSubmissionCost).to.equal(maxSubmissionCost)
+      expect(depositCallToMessengerCall.excessFeeRefundAddress).to.equal(sender.address)
+      expect(depositCallToMessengerCall.callValueRefundAddress).to.equal(sender.address)
       expect(depositCallToMessengerCall.maxGas).to.equal(defaultGas)
       expect(depositCallToMessengerCall.gasPriceBid).to.equal(0)
       expect(depositCallToMessengerCall.data).to.equal(expectedDepositXDomainCallData)
+
       await expect(depositTx)
         .to.emit(l1DaiGateway, 'OutboundTransferInitiated')
-        .withArgs(l1Dai.address, user1.address, user1.address, expectedDepositId, depositAmount, defaultData)
+        .withArgs(l1Dai.address, sender.address, sender.address, expectedDepositId, depositAmount, defaultData)
       await expect(depositTx)
         .to.emit(l1DaiGateway, 'TxToL2')
-        .withArgs(user1.address, l2DaiGatewayEOA.address, expectedDepositId, expectedDepositXDomainCallData)
+        .withArgs(sender.address, l2DaiGatewayEOA.address, expectedDepositId, expectedDepositXDomainCallData)
     })
 
-    it('escrows funds and sends xchain message for 3rd party')
-    it('works with custom gas and data')
-    it('reverts when called with a different token')
+    it('escrows funds and sends xchain message for 3rd party', async () => {
+      const [_deployer, inboxImpersonator, l1EscrowEOA, l2DaiGatewayEOA, routerEOA, sender, receiver] =
+        await ethers.getSigners()
+      const { l1Dai, inboxMock, l1DaiGateway } = await setupTest({
+        inboxImpersonator,
+        l1Escrow: l1EscrowEOA,
+        l2DaiGateway: l2DaiGatewayEOA,
+        router: routerEOA,
+        user1: sender,
+      })
+
+      await l1Dai.connect(sender).approve(l1DaiGateway.address, depositAmount)
+      const depositTx = await l1DaiGateway
+        .connect(sender)
+        .outboundTransfer(l1Dai.address, receiver.address, depositAmount, defaultGas, 0, defaultData)
+      const depositCallToMessengerCall = inboxMock.smocked.createRetryableTicket.calls[0]
+
+      const expectedDepositId = 0
+      const l2EncodedData = defaultAbiCoder.encode(['bytes', 'bytes'], ['0x', callHookData])
+      const expectedDepositXDomainCallData = new L2DaiGateway__factory().interface.encodeFunctionData(
+        'finalizeInboundTransfer',
+        [l1Dai.address, sender.address, receiver.address, depositAmount, l2EncodedData],
+      )
+
+      expect(await l1Dai.balanceOf(sender.address)).to.be.eq(initialTotalL1Supply - depositAmount)
+      expect(await l1Dai.balanceOf(receiver.address)).to.be.eq(0)
+      expect(await l1Dai.balanceOf(l1DaiGateway.address)).to.be.eq(0)
+      expect(await l1Dai.balanceOf(l1EscrowEOA.address)).to.be.eq(depositAmount)
+
+      expect(depositCallToMessengerCall.destAddr).to.equal(l2DaiGatewayEOA.address)
+      expect(depositCallToMessengerCall.l2CallValue).to.equal(0)
+      expect(depositCallToMessengerCall.maxSubmissionCost).to.equal(maxSubmissionCost)
+      expect(depositCallToMessengerCall.excessFeeRefundAddress).to.equal(sender.address)
+      expect(depositCallToMessengerCall.callValueRefundAddress).to.equal(sender.address)
+      expect(depositCallToMessengerCall.maxGas).to.equal(defaultGas)
+      expect(depositCallToMessengerCall.gasPriceBid).to.equal(0)
+      expect(depositCallToMessengerCall.data).to.equal(expectedDepositXDomainCallData)
+
+      await expect(depositTx)
+        .to.emit(l1DaiGateway, 'OutboundTransferInitiated')
+        .withArgs(l1Dai.address, sender.address, receiver.address, expectedDepositId, depositAmount, defaultData)
+      await expect(depositTx)
+        .to.emit(l1DaiGateway, 'TxToL2')
+        .withArgs(sender.address, l2DaiGatewayEOA.address, expectedDepositId, expectedDepositXDomainCallData)
+    })
+    it('decodes data correctly when called via router')
+    it('decodes data correctly in other cases')
+
+    it('reverts when called with a different token', async () => {
+      const [_deployer, inboxImpersonator, l1EscrowEOA, l2DaiGatewayEOA, routerEOA, sender] = await ethers.getSigners()
+      const { l1Dai, l1DaiGateway, l2Dai } = await setupTest({
+        inboxImpersonator,
+        l1Escrow: l1EscrowEOA,
+        l2DaiGateway: l2DaiGatewayEOA,
+        router: routerEOA,
+        user1: sender,
+      })
+
+      await l1Dai.connect(sender).approve(l1DaiGateway.address, depositAmount)
+      await expect(
+        l1DaiGateway
+          .connect(sender)
+          .outboundTransfer(l2Dai.address, sender.address, depositAmount, defaultGas, 0, defaultData),
+      ).to.revertedWith(errorMessages.tokenMismatch)
+    })
     it('reverts when called not by EOA')
     it('reverts when approval is too low')
     it('reverts when funds too low')
@@ -98,7 +170,7 @@ describe('L1DaiGateway', () => {
       expect(await l1Dai.balanceOf(l1EscrowEOA.address)).to.be.equal(initialTotalL1Supply - withdrawAmount)
       await expect(finalizeWithdrawalTx)
         .to.emit(l1DaiGateway, 'InboundTransferFinalized')
-        .withArgs(l1Dai.address, user1.address, user1.address, expectedTransferId, depositAmount, defaultWithdrawData)
+        .withArgs(l1Dai.address, user1.address, user1.address, expectedTransferId, withdrawAmount, defaultWithdrawData)
     })
 
     it('sends funds from the escrow to the 3rd party')

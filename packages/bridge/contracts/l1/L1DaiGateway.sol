@@ -121,7 +121,7 @@ contract L1DaiGateway is L1ArbitrumExtendedGateway {
         override
         returns (address)
     {
-        require(l1ERC20 == l1Dai, "WRONG_l1Dai");
+        require(l1ERC20 == l1Dai, "L1DaiGateway/token-not-dai");
         return l2Dai;
     }
 }
