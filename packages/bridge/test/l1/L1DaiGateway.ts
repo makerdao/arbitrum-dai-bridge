@@ -4,11 +4,15 @@ import { defaultAbiCoder } from 'ethers/lib/utils'
 import { ethers } from 'hardhat'
 
 import { ArbDai__factory, Dai__factory, L1DaiGateway__factory, L2DaiGateway__factory } from '../../typechain'
-import { assertPublicMethods, deploy, deployArbitrumContractMock } from '../helpers/helpers'
+import { testAuth } from '../helpers/auth'
+import { assertPublicMethods, deploy, deployArbitrumContractMock, getRandomAddresses } from '../helpers/helpers'
 
 const initialTotalL1Supply = 3000
 const errorMessages = {
+  closed: 'L1DaiGateway/closed',
   tokenMismatch: 'L1DaiGateway/token-not-dai',
+  insufficientAllowance: 'Dai/insufficient-allowance',
+  insufficientFunds: 'Dai/insufficient-balance',
 }
 
 describe('L1DaiGateway', () => {
@@ -128,10 +132,64 @@ describe('L1DaiGateway', () => {
           .outboundTransfer(l2Dai.address, sender.address, depositAmount, defaultGas, 0, defaultData),
       ).to.revertedWith(errorMessages.tokenMismatch)
     })
-    it('reverts when called not by EOA')
-    it('reverts when approval is too low')
-    it('reverts when funds too low')
-    it('reverts when bridge is closed')
+
+    it('reverts when approval is too low', async () => {
+      const [_deployer, inboxImpersonator, l1EscrowEOA, l2DaiGatewayEOA, routerEOA, sender, receiver] =
+        await ethers.getSigners()
+      const { l1Dai, l1DaiGateway } = await setupTest({
+        inboxImpersonator,
+        l1Escrow: l1EscrowEOA,
+        l2DaiGateway: l2DaiGatewayEOA,
+        router: routerEOA,
+        user1: sender,
+      })
+
+      await expect(
+        l1DaiGateway
+          .connect(sender)
+          .outboundTransfer(l1Dai.address, receiver.address, depositAmount, defaultGas, 0, defaultData),
+      ).to.be.revertedWith(errorMessages.insufficientAllowance)
+    })
+
+    it('reverts when funds too low', async () => {
+      const [_deployer, inboxImpersonator, l1EscrowEOA, l2DaiGatewayEOA, routerEOA, user1, sender, receiver] =
+        await ethers.getSigners()
+      const { l1Dai, l1DaiGateway } = await setupTest({
+        inboxImpersonator,
+        l1Escrow: l1EscrowEOA,
+        l2DaiGateway: l2DaiGatewayEOA,
+        router: routerEOA,
+        user1,
+      })
+
+      await l1Dai.connect(sender).approve(l1DaiGateway.address, depositAmount)
+      await expect(
+        l1DaiGateway
+          .connect(sender)
+          .outboundTransfer(l1Dai.address, receiver.address, depositAmount, defaultGas, 0, defaultData),
+      ).to.be.revertedWith(errorMessages.insufficientFunds)
+    })
+
+    it('reverts when bridge is closed', async () => {
+      const [deployer, inboxImpersonator, l1EscrowEOA, l2DaiGatewayEOA, routerEOA, sender, receiver] =
+        await ethers.getSigners()
+      const { l1Dai, l1DaiGateway } = await setupTest({
+        inboxImpersonator,
+        l1Escrow: l1EscrowEOA,
+        l2DaiGateway: l2DaiGatewayEOA,
+        router: routerEOA,
+        user1: sender,
+      })
+
+      await l1DaiGateway.connect(deployer).close()
+
+      await l1Dai.connect(sender).approve(l1DaiGateway.address, depositAmount)
+      await expect(
+        l1DaiGateway
+          .connect(sender)
+          .outboundTransfer(l1Dai.address, receiver.address, depositAmount, defaultGas, 0, defaultData),
+      ).to.revertedWith(errorMessages.closed)
+    })
   })
 
   describe('finalizeInboundTransfer', () => {
@@ -265,10 +323,21 @@ describe('L1DaiGateway', () => {
       'outboundTransfer(address,address,uint256,uint256,uint256,bytes)', // deposit
       'transferExitAndCall(uint256,address,address,bytes,bytes)', // transfers the right to withdrawal and call a contract(allows for fast exits)
       'inboundEscrowAndCall(address,uint256,address,address,bytes)', // not really public -- can be called only by itself
+      'close()',
+      'deny(address)',
+      'rely(address)',
     ])
   })
 
-  it('implements auth')
+  testAuth(
+    'L1DaiGateway',
+    async () => {
+      const [l2Counterpart, l1Router, inbox, l1Dai, l2Dai, l1Escrow] = await getRandomAddresses()
+
+      return [l2Counterpart, l1Router, inbox, l1Dai, l2Dai, l1Escrow]
+    },
+    [(c) => c.close()],
+  )
 })
 
 async function setupTest(signers: {
