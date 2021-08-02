@@ -14,6 +14,7 @@ const errorMessages = {
   insufficientAllowance: 'Dai/insufficient-allowance',
   insufficientFunds: 'Dai/insufficient-balance',
   l2CounterpartMismatch: 'ONLY_COUNTERPART_GATEWAY',
+  notOwner: 'L1DaiGateway/not-authorized',
 }
 
 describe('L1DaiGateway', () => {
@@ -487,9 +488,78 @@ describe('L1DaiGateway', () => {
     it('reverts when exitReceiver reverts or returns false')
   })
 
-  describe('close()', () => {})
+  describe('close()', () => {
+    it('can be called by owner', async () => {
+      const [owner, inboxImpersonator, l1EscrowEOA, l2DaiGatewayEOA, routerEOA, user1] = await ethers.getSigners()
+      const { l1DaiGateway } = await setupTest({
+        inboxImpersonator,
+        l1Escrow: l1EscrowEOA,
+        l2DaiGateway: l2DaiGatewayEOA,
+        router: routerEOA,
+        user1,
+      })
 
-  describe('constructor', () => {})
+      expect(await l1DaiGateway.isOpen()).to.be.eq(1)
+      const closeTx = await l1DaiGateway.connect(owner).close()
+
+      await expect(closeTx).to.emit(l1DaiGateway, 'Closed')
+
+      expect(await l1DaiGateway.isOpen()).to.be.eq(0)
+    })
+
+    it('can be called multiple times by the owner but nothing changes', async () => {
+      const [owner, inboxImpersonator, l1EscrowEOA, l2DaiGatewayEOA, routerEOA, user1] = await ethers.getSigners()
+      const { l1DaiGateway } = await setupTest({
+        inboxImpersonator,
+        l1Escrow: l1EscrowEOA,
+        l2DaiGateway: l2DaiGatewayEOA,
+        router: routerEOA,
+        user1,
+      })
+
+      await l1DaiGateway.connect(owner).close()
+      expect(await l1DaiGateway.isOpen()).to.be.eq(0)
+
+      await l1DaiGateway.connect(owner).close()
+      expect(await l1DaiGateway.isOpen()).to.be.eq(0)
+    })
+
+    it('reverts when called not by the owner', async () => {
+      const [_deployer, inboxImpersonator, l1EscrowEOA, l2DaiGatewayEOA, routerEOA, user1] = await ethers.getSigners()
+      const { l1DaiGateway } = await setupTest({
+        inboxImpersonator,
+        l1Escrow: l1EscrowEOA,
+        l2DaiGateway: l2DaiGatewayEOA,
+        router: routerEOA,
+        user1,
+      })
+
+      await expect(l1DaiGateway.connect(user1).close()).to.be.revertedWith(errorMessages.notOwner)
+    })
+  })
+
+  describe('constructor', () => {
+    it('assigns all variables properly', async () => {
+      const [l2DaiGateway, l1Router, inbox, l1Dai, l2Dai, l1Escrow] = await getRandomAddresses()
+
+      const l1DaiGateway = await deploy<L1DaiGateway__factory>('L1DaiGateway', [
+        l2DaiGateway,
+        l1Router,
+        inbox,
+        l1Dai,
+        l2Dai,
+        l1Escrow,
+      ])
+
+      expect(await l1DaiGateway.counterpartGateway()).to.be.eq(l2DaiGateway)
+      expect(await l1DaiGateway.router()).to.be.eq(l1Router)
+      expect(await l1DaiGateway.inbox()).to.be.eq(inbox)
+      expect(await l1DaiGateway.l1Dai()).to.be.eq(l1Dai)
+      expect(await l1DaiGateway.l2Dai()).to.be.eq(l2Dai)
+      expect(await l1DaiGateway.l1Escrow()).to.be.eq(l1Escrow)
+      expect(await l1DaiGateway.isOpen()).to.be.eq(1)
+    })
+  })
 
   describe('inboundEscrowAndCall', () => {
     it("can't be called by anyone")
