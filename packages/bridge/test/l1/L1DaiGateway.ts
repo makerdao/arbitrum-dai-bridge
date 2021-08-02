@@ -13,6 +13,7 @@ const errorMessages = {
   tokenMismatch: 'L1DaiGateway/token-not-dai',
   insufficientAllowance: 'Dai/insufficient-allowance',
   insufficientFunds: 'Dai/insufficient-balance',
+  l2CounterpartMismatch: 'ONLY_COUNTERPART_GATEWAY',
 }
 
 describe('L1DaiGateway', () => {
@@ -231,12 +232,189 @@ describe('L1DaiGateway', () => {
         .withArgs(l1Dai.address, user1.address, user1.address, expectedTransferId, withdrawAmount, defaultWithdrawData)
     })
 
-    it('sends funds from the escrow to the 3rd party')
+    it('sends funds from the escrow to the 3rd party', async () => {
+      const expectedTransferId = 1
+      const defaultWithdrawData = ethers.utils.defaultAbiCoder.encode(['uint256', 'bytes'], [expectedTransferId, '0x'])
+
+      const [
+        _deployer,
+        inboxImpersonator,
+        l1EscrowEOA,
+        l2DaiGatewayEOA,
+        routerEOA,
+        bridgeImpersonator,
+        outboxImpersonator,
+        sender,
+        receiver,
+      ] = await ethers.getSigners()
+      const { l1Dai, outboxMock, l1DaiGateway } = await setupWithdrawalTest({
+        inboxImpersonator,
+        l1Escrow: l1EscrowEOA,
+        l2DaiGateway: l2DaiGatewayEOA,
+        router: routerEOA,
+        user1: sender,
+        bridgeImpersonator,
+        outboxImpersonator,
+      })
+      outboxMock.smocked.l2ToL1Sender.will.return.with(() => l2DaiGatewayEOA.address)
+
+      const finalizeWithdrawalTx = await l1DaiGateway
+        .connect(outboxImpersonator)
+        .finalizeInboundTransfer(l1Dai.address, sender.address, receiver.address, withdrawAmount, defaultWithdrawData)
+
+      expect(await l1Dai.balanceOf(sender.address)).to.be.equal(0)
+      expect(await l1Dai.balanceOf(receiver.address)).to.be.equal(withdrawAmount)
+      expect(await l1Dai.balanceOf(l1EscrowEOA.address)).to.be.equal(initialTotalL1Supply - withdrawAmount)
+      await expect(finalizeWithdrawalTx)
+        .to.emit(l1DaiGateway, 'InboundTransferFinalized')
+        .withArgs(
+          l1Dai.address,
+          sender.address,
+          receiver.address,
+          expectedTransferId,
+          withdrawAmount,
+          defaultWithdrawData,
+        )
+    })
+
     // pending withdrawals MUST success even if bridge is closed
-    it('completes withdrawals even when closed')
-    it('reverts when called with a different token')
-    it('reverts when called not by XDomainMessenger')
-    it('reverts when called by XDomainMessenger but not relying message from l2DAITokenBridge')
+    it('completes withdrawals even when closed', async () => {
+      const expectedTransferId = 1
+      const defaultWithdrawData = ethers.utils.defaultAbiCoder.encode(['uint256', 'bytes'], [expectedTransferId, '0x'])
+
+      const [
+        deployer,
+        inboxImpersonator,
+        l1EscrowEOA,
+        l2DaiGatewayEOA,
+        routerEOA,
+        bridgeImpersonator,
+        outboxImpersonator,
+        user1,
+      ] = await ethers.getSigners()
+      const { l1Dai, outboxMock, l1DaiGateway } = await setupWithdrawalTest({
+        inboxImpersonator,
+        l1Escrow: l1EscrowEOA,
+        l2DaiGateway: l2DaiGatewayEOA,
+        router: routerEOA,
+        user1,
+        bridgeImpersonator,
+        outboxImpersonator,
+      })
+      outboxMock.smocked.l2ToL1Sender.will.return.with(() => l2DaiGatewayEOA.address)
+      await l1DaiGateway.connect(deployer).close()
+
+      const finalizeWithdrawalTx = await l1DaiGateway
+        .connect(outboxImpersonator)
+        .finalizeInboundTransfer(l1Dai.address, user1.address, user1.address, withdrawAmount, defaultWithdrawData)
+
+      expect(await l1Dai.balanceOf(user1.address)).to.be.equal(withdrawAmount)
+      expect(await l1Dai.balanceOf(l1EscrowEOA.address)).to.be.equal(initialTotalL1Supply - withdrawAmount)
+      await expect(finalizeWithdrawalTx)
+        .to.emit(l1DaiGateway, 'InboundTransferFinalized')
+        .withArgs(l1Dai.address, user1.address, user1.address, expectedTransferId, withdrawAmount, defaultWithdrawData)
+    })
+
+    // this is not easy to implement in the current implementation
+    it.skip('reverts when called with a different token', async () => {
+      const expectedTransferId = 1
+      const defaultWithdrawData = ethers.utils.defaultAbiCoder.encode(['uint256', 'bytes'], [expectedTransferId, '0x'])
+
+      const [
+        _deployer,
+        inboxImpersonator,
+        l1EscrowEOA,
+        l2DaiGatewayEOA,
+        routerEOA,
+        bridgeImpersonator,
+        outboxImpersonator,
+        user1,
+      ] = await ethers.getSigners()
+      const { l2Dai, outboxMock, l1DaiGateway } = await setupWithdrawalTest({
+        inboxImpersonator,
+        l1Escrow: l1EscrowEOA,
+        l2DaiGateway: l2DaiGatewayEOA,
+        router: routerEOA,
+        user1,
+        bridgeImpersonator,
+        outboxImpersonator,
+      })
+      outboxMock.smocked.l2ToL1Sender.will.return.with(() => l2DaiGatewayEOA.address)
+
+      // this should revert
+      await l1DaiGateway
+        .connect(outboxImpersonator)
+        .finalizeInboundTransfer(l2Dai.address, user1.address, user1.address, withdrawAmount, defaultWithdrawData)
+    })
+
+    it.skip('reverts when called not by the outbox', async () => {
+      const expectedTransferId = 1
+      const defaultWithdrawData = ethers.utils.defaultAbiCoder.encode(['uint256', 'bytes'], [expectedTransferId, '0x'])
+
+      const [
+        _deployer,
+        inboxImpersonator,
+        l1EscrowEOA,
+        l2DaiGatewayEOA,
+        routerEOA,
+        bridgeImpersonator,
+        outboxImpersonator,
+        user1,
+      ] = await ethers.getSigners()
+      const { l1Dai, outboxMock, l1DaiGateway } = await setupWithdrawalTest({
+        inboxImpersonator,
+        l1Escrow: l1EscrowEOA,
+        l2DaiGateway: l2DaiGatewayEOA,
+        router: routerEOA,
+        user1,
+        bridgeImpersonator,
+        outboxImpersonator,
+      })
+      outboxMock.smocked.l2ToL1Sender.will.return.with(() => l2DaiGatewayEOA.address)
+
+      await expect(
+        l1DaiGateway.finalizeInboundTransfer(
+          l1Dai.address,
+          user1.address,
+          user1.address,
+          withdrawAmount,
+          defaultWithdrawData,
+        ),
+      ).to.be.revertedWith('wrong caller!')
+    })
+
+    it('reverts when called by the outbox but not relying message from l2 counterpart', async () => {
+      const expectedTransferId = 1
+      const defaultWithdrawData = ethers.utils.defaultAbiCoder.encode(['uint256', 'bytes'], [expectedTransferId, '0x'])
+
+      const [
+        _deployer,
+        inboxImpersonator,
+        l1EscrowEOA,
+        l2DaiGatewayEOA,
+        routerEOA,
+        bridgeImpersonator,
+        outboxImpersonator,
+        user1,
+        user2,
+      ] = await ethers.getSigners()
+      const { l1Dai, outboxMock, l1DaiGateway } = await setupWithdrawalTest({
+        inboxImpersonator,
+        l1Escrow: l1EscrowEOA,
+        l2DaiGateway: l2DaiGatewayEOA,
+        router: routerEOA,
+        user1,
+        bridgeImpersonator,
+        outboxImpersonator,
+      })
+      outboxMock.smocked.l2ToL1Sender.will.return.with(() => user2.address)
+
+      await expect(
+        l1DaiGateway
+          .connect(outboxImpersonator)
+          .finalizeInboundTransfer(l1Dai.address, user1.address, user1.address, withdrawAmount, defaultWithdrawData),
+      ).to.be.revertedWith(errorMessages.l2CounterpartMismatch)
+    })
   })
 
   describe('transferExitAndCall', () => {
