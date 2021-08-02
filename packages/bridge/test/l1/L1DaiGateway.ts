@@ -15,6 +15,7 @@ const errorMessages = {
   insufficientFunds: 'Dai/insufficient-balance',
   l2CounterpartMismatch: 'ONLY_COUNTERPART_GATEWAY',
   notOwner: 'L1DaiGateway/not-authorized',
+  inboundEscrowAndCallGuard: 'Mint can only be called by self',
 }
 
 describe('L1DaiGateway', () => {
@@ -132,7 +133,7 @@ describe('L1DaiGateway', () => {
         l1DaiGateway
           .connect(sender)
           .outboundTransfer(l2Dai.address, sender.address, depositAmount, defaultGas, 0, defaultData),
-      ).to.revertedWith(errorMessages.tokenMismatch)
+      ).to.be.revertedWith(errorMessages.tokenMismatch)
     })
 
     it('reverts when approval is too low', async () => {
@@ -562,7 +563,21 @@ describe('L1DaiGateway', () => {
   })
 
   describe('inboundEscrowAndCall', () => {
-    it("can't be called by anyone")
+    it("can't be called by anyone", async () => {
+      const [_deployer, inboxImpersonator, l1EscrowEOA, l2DaiGatewayEOA, routerEOA, user1, user2] =
+        await ethers.getSigners()
+      const { l1DaiGateway } = await setupTest({
+        inboxImpersonator,
+        l1Escrow: l1EscrowEOA,
+        l2DaiGateway: l2DaiGatewayEOA,
+        router: routerEOA,
+        user1,
+      })
+
+      await expect(
+        l1DaiGateway.inboundEscrowAndCall(user2.address, 100, user2.address, user2.address, '0x'),
+      ).to.be.revertedWith(errorMessages.inboundEscrowAndCallGuard)
+    })
   })
 
   it('has correct public interface', async () => {
