@@ -19,6 +19,7 @@ const errorMessages = {
   insufficientAllowance: 'Dai/insufficient-allowance',
   insufficientFunds: 'Dai/insufficient-balance',
   notOwner: 'L2DaiGateway/not-authorized',
+  notOwnerOfDai: 'Dai/not-authorized',
   l1CounterpartMismatch: 'ONLY_COUNTERPART_GATEWAY',
   inboundEscrowAndCallGuard: 'Mint can only be called by self',
   postUpgradeInitGuard: 'ALREADY_INIT',
@@ -47,6 +48,7 @@ describe('L2DaiGateway', () => {
       await expect(tx)
         .to.emit(l2DaiGateway, 'InboundTransferFinalized')
         .withArgs(l1Dai.address, sender.address, receiverAddress, l2Dai.address, depositAmount, defaultData)
+      // todo assert TransferAndCallTriggered was NOT called
     })
 
     it('mints tokens for a 3rd party', async () => {
@@ -66,6 +68,7 @@ describe('L2DaiGateway', () => {
       await expect(tx)
         .to.emit(l2DaiGateway, 'InboundTransferFinalized')
         .withArgs(l1Dai.address, sender.address, receiver.address, l2Dai.address, depositAmount, defaultData)
+      // todo assert TransferAndCallTriggered was NOT called
     })
 
     it('calls receiver with data when present', async () => {
@@ -93,9 +96,64 @@ describe('L2DaiGateway', () => {
       await expect(tx)
         .to.emit(l2DaiGateway, 'InboundTransferFinalized')
         .withArgs(l1Dai.address, sender.address, receiverMock.address, l2Dai.address, depositAmount, data)
+      await expect(tx)
+        .to.emit(l2DaiGateway, 'TransferAndCallTriggered')
+        .withArgs(true, sender.address, receiverMock.address, depositAmount, callHookData)
     })
-    it('calls receiver with data when present and works even if receiver reverts')
-    it('fails when receiver is not a contract but withdraw was called with data')
+
+    it('calls receiver with data when present and works even if receiver reverts', async () => {
+      const [sender, l1Dai, router] = await ethers.getSigners()
+      const { l2Dai, l2DaiGateway } = await setupTest({ l1Dai, l1DaiBridge: sender, router })
+      const callHookData = ethers.utils.defaultAbiCoder.encode(['uint256'], [42])
+      const data = ethers.utils.defaultAbiCoder.encode(['bytes', 'bytes'], ['0x', callHookData])
+      const receiverMock = await deployArbitrumContractMock('IERC677Receiver')
+      receiverMock.smocked.onTokenTransfer.will.revert.with()
+
+      const tx = await l2DaiGateway.finalizeInboundTransfer(
+        l1Dai.address,
+        sender.address,
+        receiverMock.address,
+        depositAmount,
+        data,
+      )
+      const onWithdrawalMessengerCall = receiverMock.smocked.onTokenTransfer.calls[0]
+
+      expect(await l2Dai.balanceOf(sender.address)).to.be.eq(depositAmount) // if reverted, sender gets deposited
+      expect(await l2Dai.totalSupply()).to.be.eq(depositAmount)
+      expect(onWithdrawalMessengerCall._sender).to.be.eq(sender.address)
+      expect(onWithdrawalMessengerCall._value).to.be.eq(depositAmount)
+      expect(onWithdrawalMessengerCall.data).to.be.eq(callHookData)
+      await expect(tx)
+        .to.emit(l2DaiGateway, 'InboundTransferFinalized')
+        .withArgs(l1Dai.address, sender.address, receiverMock.address, l2Dai.address, depositAmount, data)
+      await expect(tx)
+        .to.emit(l2DaiGateway, 'TransferAndCallTriggered')
+        .withArgs(false, sender.address, receiverMock.address, depositAmount, callHookData)
+    })
+
+    it('fails when receiver is not a contract but withdraw was called with callHookData', async () => {
+      const [sender, l1Dai, router, receiverEOA] = await ethers.getSigners()
+      const { l2Dai, l2DaiGateway } = await setupTest({ l1Dai, l1DaiBridge: sender, router })
+      const callHookData = ethers.utils.defaultAbiCoder.encode(['uint256'], [42])
+      const data = ethers.utils.defaultAbiCoder.encode(['bytes', 'bytes'], ['0x', callHookData])
+
+      const tx = await l2DaiGateway.finalizeInboundTransfer(
+        l1Dai.address,
+        sender.address,
+        receiverEOA.address,
+        depositAmount,
+        data,
+      )
+
+      expect(await l2Dai.balanceOf(sender.address)).to.be.eq(depositAmount) // if reverted, sender gets deposited
+      expect(await l2Dai.totalSupply()).to.be.eq(depositAmount)
+      await expect(tx)
+        .to.emit(l2DaiGateway, 'InboundTransferFinalized')
+        .withArgs(l1Dai.address, sender.address, receiverEOA.address, l2Dai.address, depositAmount, data)
+      await expect(tx)
+        .to.emit(l2DaiGateway, 'TransferAndCallTriggered')
+        .withArgs(false, sender.address, receiverEOA.address, depositAmount, callHookData)
+    })
 
     it('mints tokens even when closed', async () => {
       const [sender, l1Dai, router] = await ethers.getSigners()
@@ -134,10 +192,37 @@ describe('L2DaiGateway', () => {
       ).to.be.revertedWith(errorMessages.tokenMismatch)
     })
 
-    it('reverts when DAI minting access was revoked')
+    it('reverts when DAI minting access was revoked', async () => {
+      const [sender, l1Dai, router] = await ethers.getSigners()
+      const { l2DaiGateway, l2Dai } = await setupTest({ l1Dai, l1DaiBridge: sender, router })
+      const receiverAddress = sender.address
 
-    it('reverts when called not by inbox')
+      await l2Dai.deny(l2DaiGateway.address)
 
+      await expect(
+        l2DaiGateway.finalizeInboundTransfer(
+          l1Dai.address,
+          sender.address,
+          receiverAddress,
+          depositAmount,
+          defaultData,
+        ),
+      ).to.be.revertedWith(errorMessages.notOwnerOfDai)
+    })
+
+    // not implemented yet
+    it.skip('reverts when called not by inbox', async () => {
+      const [sender, l1Dai, router, dummyAcc] = await ethers.getSigners()
+      const { l2DaiGateway } = await setupTest({ l1Dai, l1DaiBridge: sender, router })
+      const receiverAddress = sender.address
+
+      await expect(
+        l2DaiGateway
+          .connect(dummyAcc)
+          .finalizeInboundTransfer(l1Dai.address, sender.address, receiverAddress, depositAmount, defaultData),
+      ).to.be.revertedWith(errorMessages.notOwner)
+    })
+    // double check this
     it('reverts when called by inbox but not relying message from l1DaiGateway', async () => {
       const [sender, l1Dai, router, dummyAcc] = await ethers.getSigners()
       const { l2DaiGateway } = await setupTest({ l1Dai, l1DaiBridge: dummyAcc, router })
@@ -310,7 +395,52 @@ describe('L2DaiGateway', () => {
       ).to.be.revertedWith(errorMessages.insufficientFunds)
     })
   })
-  describe('outboundTransfer(address,address,uint256,uint256,uint256,bytes)', () => {})
+
+  describe('outboundTransfer(address,address,uint256,uint256,uint256,bytes)', () => {
+    const withdrawAmount = 100
+    const defaultData = '0x'
+    const expectedWithdrawalId = 0
+    const maxGas = 100
+    const gasPriceBid = 200
+
+    it('sends xchain message and burns tokens', async () => {
+      const [_deployer, l1DaiBridge, l1Dai, router, sender] = await ethers.getSigners()
+      const { l2Dai, l2DaiGateway, arbSysMock } = await setupWithdrawalTest({
+        l1Dai,
+        l1DaiBridge,
+        router,
+        user1: sender,
+      })
+
+      const tx = await l2DaiGateway
+        .connect(sender)
+        ['outboundTransfer(address,address,uint256,uint256,uint256,bytes)'](
+          l1Dai.address,
+          sender.address,
+          withdrawAmount,
+          maxGas,
+          gasPriceBid,
+          defaultData,
+        )
+      const withdrawCrossChainCall = arbSysMock.smocked.sendTxToL1.calls[0]
+
+      expect(await l2Dai.balanceOf(sender.address)).to.be.eq(initialTotalL2Supply - withdrawAmount)
+      expect(await l2Dai.totalSupply()).to.be.eq(initialTotalL2Supply - withdrawAmount)
+      await expect(tx)
+        .to.emit(l2DaiGateway, 'OutboundTransferInitiated')
+        .withArgs(l1Dai.address, sender.address, sender.address, expectedWithdrawalId, withdrawAmount, defaultData)
+      expect(withdrawCrossChainCall.destAddr).to.eq(l1DaiBridge.address)
+      expect(withdrawCrossChainCall.calldataForL1).to.eq(
+        new L1DaiGateway__factory().interface.encodeFunctionData('finalizeInboundTransfer', [
+          l1Dai.address,
+          sender.address,
+          sender.address,
+          withdrawAmount,
+          ethers.utils.defaultAbiCoder.encode(['uint256', 'bytes'], [expectedWithdrawalId, defaultData]),
+        ]),
+      )
+    })
+  })
 
   describe('close', () => {
     it('can be called by owner', async () => {
@@ -404,8 +534,6 @@ describe('L2DaiGateway', () => {
       'wards(address)',
     ])
   })
-
-  it('has correct public interface for view and pure functions')
 
   testAuth(
     'L2DaiGateway',

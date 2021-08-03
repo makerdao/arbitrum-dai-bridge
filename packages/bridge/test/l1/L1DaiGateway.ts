@@ -590,6 +590,7 @@ describe('L1DaiGateway', () => {
       'deny(address)',
       'rely(address)',
     ])
+    // assertPublicNotMutableMethods
   })
 
   testAuth(
