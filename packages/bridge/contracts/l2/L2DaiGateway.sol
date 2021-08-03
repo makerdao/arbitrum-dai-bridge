@@ -118,6 +118,9 @@ contract L2DaiGateway is L2ArbitrumGateway {
     uint256 _amount,
     bytes memory _extraData
   ) internal virtual override returns (uint256) {
+    // do not allow initiating new xchain messages if bridge is closed
+    require(isOpen == 1, "L2DaiGateway/closed");
+
     return sendTxToL1(_from, 0, getOutboundCalldata(_l1Token, _from, _to, _amount, _extraData));
   }
 

@@ -12,6 +12,7 @@ import {
   getRandomAddresses,
 } from '../helpers/helpers'
 
+const initialTotalL2Supply = 3000
 const errorMessages = {
   closed: 'L2DaiGateway/closed',
   tokenMismatch: 'L2DaiGateway/token-not-dai',
@@ -155,40 +156,158 @@ describe('L2DaiGateway', () => {
 
   describe('outboundTransfer(address,address,uint256,bytes)', () => {
     const withdrawAmount = 100
+    const defaultData = '0x'
+    const expectedWithdrawalId = 0
 
     it('sends xchain message and burns tokens', async () => {
-      const [sender, l1DaiBridge, l1Dai, router] = await ethers.getSigners()
-      const { l2Dai, l2DaiGateway, arbSysMock } = await setupWithdrawalTest({ l1Dai, l1DaiBridge, router })
+      const [_deployer, l1DaiBridge, l1Dai, router, sender] = await ethers.getSigners()
+      const { l2Dai, l2DaiGateway, arbSysMock } = await setupWithdrawalTest({
+        l1Dai,
+        l1DaiBridge,
+        router,
+        user1: sender,
+      })
 
-      const receiverAddress = sender.address
-      const data = '0x'
-      const expectedWithdrawalId = 0
-
-      await l2Dai.mint(sender.address, withdrawAmount)
-
-      const tx = await l2DaiGateway['outboundTransfer(address,address,uint256,bytes)'](
-        l1Dai.address,
-        receiverAddress,
-        withdrawAmount,
-        data,
-      )
+      const tx = await l2DaiGateway
+        .connect(sender)
+        ['outboundTransfer(address,address,uint256,bytes)'](l1Dai.address, sender.address, withdrawAmount, defaultData)
       const withdrawCrossChainCall = arbSysMock.smocked.sendTxToL1.calls[0]
 
-      expect(await l2Dai.balanceOf(sender.address)).to.be.eq(0)
-      expect(await l2Dai.totalSupply()).to.be.eq(0)
+      expect(await l2Dai.balanceOf(sender.address)).to.be.eq(initialTotalL2Supply - withdrawAmount)
+      expect(await l2Dai.totalSupply()).to.be.eq(initialTotalL2Supply - withdrawAmount)
       await expect(tx)
         .to.emit(l2DaiGateway, 'OutboundTransferInitiated')
-        .withArgs(l1Dai.address, sender.address, receiverAddress, expectedWithdrawalId, withdrawAmount, data)
+        .withArgs(l1Dai.address, sender.address, sender.address, expectedWithdrawalId, withdrawAmount, defaultData)
       expect(withdrawCrossChainCall.destAddr).to.eq(l1DaiBridge.address)
       expect(withdrawCrossChainCall.calldataForL1).to.eq(
         new L1DaiGateway__factory().interface.encodeFunctionData('finalizeInboundTransfer', [
           l1Dai.address,
           sender.address,
-          receiverAddress,
+          sender.address,
           withdrawAmount,
-          ethers.utils.defaultAbiCoder.encode(['uint256', 'bytes'], [expectedWithdrawalId, data]),
+          ethers.utils.defaultAbiCoder.encode(['uint256', 'bytes'], [expectedWithdrawalId, defaultData]),
         ]),
       )
+    })
+
+    it('sends xchain message and burns tokens for 3rd party', async () => {
+      const [_deployer, l1DaiBridge, l1Dai, router, sender, receiver] = await ethers.getSigners()
+      const { l2Dai, l2DaiGateway, arbSysMock } = await setupWithdrawalTest({
+        l1Dai,
+        l1DaiBridge,
+        router,
+        user1: sender,
+      })
+
+      const tx = await l2DaiGateway
+        .connect(sender)
+        ['outboundTransfer(address,address,uint256,bytes)'](
+          l1Dai.address,
+          receiver.address,
+          withdrawAmount,
+          defaultData,
+        )
+      const withdrawCrossChainCall = arbSysMock.smocked.sendTxToL1.calls[0]
+
+      expect(await l2Dai.balanceOf(sender.address)).to.be.eq(initialTotalL2Supply - withdrawAmount)
+      expect(await l2Dai.balanceOf(receiver.address)).to.be.eq(0)
+      expect(await l2Dai.totalSupply()).to.be.eq(initialTotalL2Supply - withdrawAmount)
+      await expect(tx)
+        .to.emit(l2DaiGateway, 'OutboundTransferInitiated')
+        .withArgs(l1Dai.address, sender.address, receiver.address, expectedWithdrawalId, withdrawAmount, defaultData)
+      expect(withdrawCrossChainCall.destAddr).to.eq(l1DaiBridge.address)
+      expect(withdrawCrossChainCall.calldataForL1).to.eq(
+        new L1DaiGateway__factory().interface.encodeFunctionData('finalizeInboundTransfer', [
+          l1Dai.address,
+          sender.address,
+          receiver.address,
+          withdrawAmount,
+          ethers.utils.defaultAbiCoder.encode(['uint256', 'bytes'], [expectedWithdrawalId, defaultData]),
+        ]),
+      )
+    })
+
+    it('reverts when called with a different token', async () => {
+      const [sender, l1DaiBridge, l1Dai, router] = await ethers.getSigners()
+      const { l2Dai, l2DaiGateway } = await setupWithdrawalTest({
+        l1Dai,
+        l1DaiBridge,
+        router,
+        user1: sender,
+      })
+
+      await expect(
+        l2DaiGateway['outboundTransfer(address,address,uint256,bytes)'](
+          l2Dai.address,
+          sender.address,
+          withdrawAmount,
+          defaultData,
+        ),
+      ).to.be.revertedWith(errorMessages.tokenMismatch)
+    })
+
+    it('reverts when bridge closed', async () => {
+      const [sender, l1DaiBridge, l1Dai, router] = await ethers.getSigners()
+      const { l2DaiGateway } = await setupWithdrawalTest({
+        l1Dai,
+        l1DaiBridge,
+        router,
+        user1: sender,
+      })
+
+      await l2DaiGateway.connect(sender).close()
+
+      await expect(
+        l2DaiGateway['outboundTransfer(address,address,uint256,bytes)'](
+          l1Dai.address,
+          sender.address,
+          withdrawAmount,
+          defaultData,
+        ),
+      ).to.be.revertedWith(errorMessages.closed)
+    })
+
+    it('reverts when bridge doesnt have burn permissions on DAI', async () => {
+      const [sender, l1DaiBridge, l1Dai, router] = await ethers.getSigners()
+      const { l2Dai, l2DaiGateway } = await setupWithdrawalTest({
+        l1Dai,
+        l1DaiBridge,
+        router,
+        user1: sender,
+      })
+
+      // remove burn permissions
+      await l2Dai.deny(l2DaiGateway.address)
+
+      await expect(
+        l2DaiGateway['outboundTransfer(address,address,uint256,bytes)'](
+          l1Dai.address,
+          sender.address,
+          withdrawAmount,
+          defaultData,
+        ),
+      ).to.be.revertedWith(errorMessages.insufficientAllowance)
+    })
+
+    it('reverts when user funds too low', async () => {
+      const [sender, l1DaiBridge, l1Dai, router, user2] = await ethers.getSigners()
+      const { l2DaiGateway } = await setupWithdrawalTest({
+        l1Dai,
+        l1DaiBridge,
+        router,
+        user1: sender,
+      })
+
+      await expect(
+        l2DaiGateway
+          .connect(user2)
+          ['outboundTransfer(address,address,uint256,bytes)'](
+            l1Dai.address,
+            sender.address,
+            withdrawAmount,
+            defaultData,
+          ),
+      ).to.be.revertedWith(errorMessages.insufficientFunds)
     })
   })
   describe('outboundTransfer(address,address,uint256,uint256,uint256,bytes)', () => {})
@@ -323,11 +442,13 @@ async function setupWithdrawalTest(signers: {
   l1Dai: SignerWithAddress
   l1DaiBridge: SignerWithAddress
   router: SignerWithAddress
+  user1: SignerWithAddress
 }) {
   const harness = await setupTest(signers)
   const arbSysMock = await deployArbitrumContractMock('ArbSys', {
     address: '0x0000000000000000000000000000000000000064',
   })
+  await harness.l2Dai.mint(signers.user1.address, initialTotalL2Supply)
 
   return {
     ...harness,
