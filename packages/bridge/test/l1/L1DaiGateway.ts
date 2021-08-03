@@ -16,6 +16,9 @@ const errorMessages = {
   l2CounterpartMismatch: 'ONLY_COUNTERPART_GATEWAY',
   notOwner: 'L1DaiGateway/not-authorized',
   inboundEscrowAndCallGuard: 'Mint can only be called by self',
+  notExpectedSender: 'NOT_EXPECTED_SENDER',
+  transferHookFail: 'TRANSFER_HOOK_FAIL',
+  exitToNotAContract: 'TO_NOT_CONTRACT',
 }
 
 describe('L1DaiGateway', () => {
@@ -318,7 +321,7 @@ describe('L1DaiGateway', () => {
     })
 
     // this is not easy to implement in the current implementation
-    it.skip('reverts when called with a different token', async () => {
+    it.skip('SKIP reverts when called with a different token', async () => {
       const expectedTransferId = 1
       const defaultWithdrawData = ethers.utils.defaultAbiCoder.encode(['uint256', 'bytes'], [expectedTransferId, '0x'])
 
@@ -349,7 +352,7 @@ describe('L1DaiGateway', () => {
         .finalizeInboundTransfer(l2Dai.address, user1.address, user1.address, withdrawAmount, defaultWithdrawData)
     })
 
-    it.skip('reverts when called not by the outbox', async () => {
+    it.skip('SKIP reverts when called not by the outbox', async () => {
       const expectedTransferId = 1
       const defaultWithdrawData = ethers.utils.defaultAbiCoder.encode(['uint256', 'bytes'], [expectedTransferId, '0x'])
 
@@ -421,11 +424,10 @@ describe('L1DaiGateway', () => {
 
   describe('transferExitAndCall', () => {
     const withdrawAmount = 100
+    const expectedTransferId = 1
+    const defaultWithdrawData = ethers.utils.defaultAbiCoder.encode(['uint256', 'bytes'], [expectedTransferId, '0x'])
 
     it('transfers exit and calls external contract', async () => {
-      const expectedTransferId = 1
-      const defaultWithdrawData = ethers.utils.defaultAbiCoder.encode(['uint256', 'bytes'], [expectedTransferId, '0x'])
-
       const [
         _deployer,
         inboxImpersonator,
@@ -485,8 +487,150 @@ describe('L1DaiGateway', () => {
       expect(await l1Dai.balanceOf(l1EscrowEOA.address)).to.be.equal(initialTotalL1Supply - withdrawAmount)
     })
 
-    it('reverts when not expected sender called')
-    it('reverts when exitReceiver reverts or returns false')
+    it('reverts when not expected sender called', async () => {
+      const [
+        _deployer,
+        inboxImpersonator,
+        l1EscrowEOA,
+        l2DaiGatewayEOA,
+        routerEOA,
+        bridgeImpersonator,
+        outboxImpersonator,
+        user1,
+        user2,
+      ] = await ethers.getSigners()
+      const { l1DaiGateway } = await setupWithdrawalTest({
+        inboxImpersonator,
+        l1Escrow: l1EscrowEOA,
+        l2DaiGateway: l2DaiGatewayEOA,
+        router: routerEOA,
+        user1,
+        bridgeImpersonator,
+        outboxImpersonator,
+      })
+      const exitReceiverMock = await deployArbitrumContractMock('ITradeableExitReceiver')
+      exitReceiverMock.smocked.onExitTransfer.will.return.with(true)
+
+      await expect(
+        l1DaiGateway
+          .connect(user2)
+          .transferExitAndCall(
+            expectedTransferId,
+            user1.address,
+            exitReceiverMock.address,
+            defaultWithdrawData,
+            defaultWithdrawData,
+          ),
+      ).to.be.revertedWith(errorMessages.notExpectedSender)
+    })
+
+    it.skip('SKIP reverts when exitReceiver reverts', async () => {
+      // likely a smock bug
+      const [
+        _deployer,
+        inboxImpersonator,
+        l1EscrowEOA,
+        l2DaiGatewayEOA,
+        routerEOA,
+        bridgeImpersonator,
+        outboxImpersonator,
+        user1,
+      ] = await ethers.getSigners()
+      const { l1DaiGateway } = await setupWithdrawalTest({
+        inboxImpersonator,
+        l1Escrow: l1EscrowEOA,
+        l2DaiGateway: l2DaiGatewayEOA,
+        router: routerEOA,
+        user1,
+        bridgeImpersonator,
+        outboxImpersonator,
+      })
+      const exitReceiverMock = await deployArbitrumContractMock('ITradeableExitReceiver')
+      exitReceiverMock.smocked.onExitTransfer.will.revert.with('mock_reverted')
+
+      await expect(
+        l1DaiGateway
+          .connect(user1)
+          .transferExitAndCall(
+            expectedTransferId,
+            user1.address,
+            exitReceiverMock.address,
+            defaultWithdrawData,
+            defaultWithdrawData,
+          ),
+      ).to.be.revertedWith('mock_reverted')
+    })
+
+    it('reverts when exitReceiver returns false', async () => {
+      const [
+        _deployer,
+        inboxImpersonator,
+        l1EscrowEOA,
+        l2DaiGatewayEOA,
+        routerEOA,
+        bridgeImpersonator,
+        outboxImpersonator,
+        user1,
+      ] = await ethers.getSigners()
+      const { l1DaiGateway } = await setupWithdrawalTest({
+        inboxImpersonator,
+        l1Escrow: l1EscrowEOA,
+        l2DaiGateway: l2DaiGatewayEOA,
+        router: routerEOA,
+        user1,
+        bridgeImpersonator,
+        outboxImpersonator,
+      })
+      const exitReceiverMock = await deployArbitrumContractMock('ITradeableExitReceiver')
+      exitReceiverMock.smocked.onExitTransfer.will.return.with(false)
+
+      await expect(
+        l1DaiGateway
+          .connect(user1)
+          .transferExitAndCall(
+            expectedTransferId,
+            user1.address,
+            exitReceiverMock.address,
+            defaultWithdrawData,
+            defaultWithdrawData,
+          ),
+      ).to.be.revertedWith(errorMessages.transferHookFail)
+    })
+
+    it('reverts when exitReceiver is not a contract', async () => {
+      const [
+        _deployer,
+        inboxImpersonator,
+        l1EscrowEOA,
+        l2DaiGatewayEOA,
+        routerEOA,
+        bridgeImpersonator,
+        outboxImpersonator,
+        user1,
+        exitReceiverEOA,
+      ] = await ethers.getSigners()
+      const { l1DaiGateway } = await setupWithdrawalTest({
+        inboxImpersonator,
+        l1Escrow: l1EscrowEOA,
+        l2DaiGateway: l2DaiGatewayEOA,
+        router: routerEOA,
+        user1,
+        bridgeImpersonator,
+        outboxImpersonator,
+      })
+
+      await expect(
+        l1DaiGateway
+          .connect(user1)
+          .transferExitAndCall(
+            expectedTransferId,
+            user1.address,
+            exitReceiverEOA.address,
+            defaultWithdrawData,
+            defaultWithdrawData,
+          ),
+      ).to.be.revertedWith(errorMessages.exitToNotAContract)
+    })
   })
 
   describe('close()', () => {
