@@ -5,7 +5,7 @@ import { ethers } from 'hardhat'
 
 import { ArbDai__factory, Dai__factory, L1DaiGateway__factory, L2DaiGateway__factory } from '../../typechain'
 import { testAuth } from '../helpers/auth'
-import { assertPublicMethods, deploy, deployArbitrumContractMock, getRandomAddresses } from '../helpers/helpers'
+import { assertPublicMutableMethods, deploy, deployArbitrumContractMock, getRandomAddresses } from '../helpers/helpers'
 
 const initialTotalL1Supply = 3000
 const errorMessages = {
@@ -581,7 +581,7 @@ describe('L1DaiGateway', () => {
   })
 
   it('has correct public interface', async () => {
-    await assertPublicMethods('L1DaiGateway', [
+    await assertPublicMutableMethods('L1DaiGateway', [
       'finalizeInboundTransfer(address,address,address,uint256,bytes)', // withdraw
       'outboundTransfer(address,address,uint256,uint256,uint256,bytes)', // deposit
       'transferExitAndCall(uint256,address,address,bytes,bytes)', // transfers the right to withdrawal and call a contract(allows for fast exits)

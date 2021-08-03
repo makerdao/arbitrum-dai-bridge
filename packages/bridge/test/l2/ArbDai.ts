@@ -3,7 +3,7 @@ import { ethers } from 'hardhat'
 
 import { ArbDai__factory } from '../../typechain'
 import { testAuth } from '../helpers/auth'
-import { assertPublicMethods, deploy, getRandomAddresses } from '../helpers/helpers'
+import { assertPublicMutableMethods, deploy, getRandomAddresses } from '../helpers/helpers'
 
 describe('ArbDai', () => {
   describe('constructor', () => {
@@ -16,7 +16,7 @@ describe('ArbDai', () => {
   })
 
   it('has correct public interface', async () => {
-    await assertPublicMethods('ArbDai', [
+    await assertPublicMutableMethods('ArbDai', [
       'rely(address)',
       'deny(address)',
       'approve(address,uint256)',
