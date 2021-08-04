@@ -5,7 +5,13 @@ import { ethers } from 'hardhat'
 
 import { ArbDai__factory, Dai__factory, L1DaiGateway__factory, L2DaiGateway__factory } from '../../typechain'
 import { testAuth } from '../helpers/auth'
-import { assertPublicMutableMethods, deploy, deployArbitrumContractMock, getRandomAddresses } from '../helpers/helpers'
+import {
+  assertPublicMutableMethods,
+  assertPublicNotMutableMethods,
+  deploy,
+  deployArbitrumContractMock,
+  getRandomAddresses,
+} from '../helpers/helpers'
 
 const initialTotalL1Supply = 3000
 const errorMessages = {
@@ -29,7 +35,7 @@ describe('L1DaiGateway', () => {
     const callHookData = '0x12'
     const defaultData = defaultAbiCoder.encode(['uint256', 'bytes'], [maxSubmissionCost, callHookData])
 
-    it('escrows funds and sends xchain message', async () => {
+    it('escrows funds and sends xdomain message', async () => {
       const [_deployer, inboxImpersonator, l1EscrowEOA, l2DaiGatewayEOA, routerEOA, sender] = await ethers.getSigners()
       const { l1Dai, inboxMock, l1DaiGateway } = await setupTest({
         inboxImpersonator,
@@ -73,7 +79,7 @@ describe('L1DaiGateway', () => {
         .withArgs(sender.address, l2DaiGatewayEOA.address, expectedDepositId, expectedDepositXDomainCallData)
     })
 
-    it('escrows funds and sends xchain message for 3rd party', async () => {
+    it('escrows funds and sends xdomain message for 3rd party', async () => {
       const [_deployer, inboxImpersonator, l1EscrowEOA, l2DaiGatewayEOA, routerEOA, sender, receiver] =
         await ethers.getSigners()
       const { l1Dai, inboxMock, l1DaiGateway } = await setupTest({
@@ -234,6 +240,7 @@ describe('L1DaiGateway', () => {
       await expect(finalizeWithdrawalTx)
         .to.emit(l1DaiGateway, 'InboundTransferFinalized')
         .withArgs(l1Dai.address, user1.address, user1.address, expectedTransferId, withdrawAmount, defaultWithdrawData)
+      await expect(finalizeWithdrawalTx).not.to.emit(l1DaiGateway, 'TransferAndCallTriggered')
     })
 
     it('sends funds from the escrow to the 3rd party', async () => {
@@ -276,6 +283,7 @@ describe('L1DaiGateway', () => {
           withdrawAmount,
           defaultWithdrawData,
         )
+      await expect(finalizeWithdrawalTx).not.to.emit(l1DaiGateway, 'TransferAndCallTriggered')
     })
 
     describe.skip('[SKIP BUG] calls receiver contract', () => {
@@ -1054,7 +1062,26 @@ describe('L1DaiGateway', () => {
       'deny(address)',
       'rely(address)',
     ])
-    // todo: assertPublicNotMutableMethods
+
+    await assertPublicNotMutableMethods('L1DaiGateway', [
+      'calculateL2TokenAddress(address)',
+      'encodeWithdrawal(uint256,address)',
+      'gasReserveIfCallRevert()',
+      'getExternalCall(uint256,address,bytes)',
+      'getOutboundCalldata(address,address,address,uint256,bytes)',
+      'parseInboundData(bytes)',
+
+      // storage variables:
+      'counterpartGateway()',
+      'inbox()',
+      'isOpen()',
+      'l1Dai()',
+      'l1Escrow()',
+      'l2Dai()',
+      'redirectedExits(bytes32)',
+      'router()',
+      'wards(address)',
+    ])
   })
 
   testAuth(

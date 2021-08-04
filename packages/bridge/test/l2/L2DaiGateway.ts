@@ -48,7 +48,7 @@ describe('L2DaiGateway', () => {
       await expect(tx)
         .to.emit(l2DaiGateway, 'InboundTransferFinalized')
         .withArgs(l1Dai.address, sender.address, receiverAddress, l2Dai.address, depositAmount, defaultData)
-      // todo assert TransferAndCallTriggered was NOT called
+      await expect(tx).not.to.emit(l2DaiGateway, 'TransferAndCallTriggered')
     })
 
     it('mints tokens for a 3rd party', async () => {
@@ -68,7 +68,7 @@ describe('L2DaiGateway', () => {
       await expect(tx)
         .to.emit(l2DaiGateway, 'InboundTransferFinalized')
         .withArgs(l1Dai.address, sender.address, receiver.address, l2Dai.address, depositAmount, defaultData)
-      // todo assert TransferAndCallTriggered was NOT called
+      await expect(tx).not.to.emit(l2DaiGateway, 'TransferAndCallTriggered')
     })
 
     it('calls receiver with data when present', async () => {
@@ -244,7 +244,7 @@ describe('L2DaiGateway', () => {
     const defaultData = '0x'
     const expectedWithdrawalId = 0
 
-    it('sends xchain message and burns tokens', async () => {
+    it('sends xdomain message and burns tokens', async () => {
       const [_deployer, l1DaiBridge, l1Dai, router, sender] = await ethers.getSigners()
       const { l2Dai, l2DaiGateway, arbSysMock } = await setupWithdrawalTest({
         l1Dai,
@@ -275,7 +275,7 @@ describe('L2DaiGateway', () => {
       )
     })
 
-    it('sends xchain message and burns tokens for 3rd party', async () => {
+    it('sends xdomain message and burns tokens for 3rd party', async () => {
       const [_deployer, l1DaiBridge, l1Dai, router, sender, receiver] = await ethers.getSigners()
       const { l2Dai, l2DaiGateway, arbSysMock } = await setupWithdrawalTest({
         l1Dai,
@@ -403,7 +403,7 @@ describe('L2DaiGateway', () => {
     const maxGas = 100
     const gasPriceBid = 200
 
-    it('sends xchain message and burns tokens', async () => {
+    it('sends xdomain message and burns tokens', async () => {
       const [_deployer, l1DaiBridge, l1Dai, router, sender] = await ethers.getSigners()
       const { l2Dai, l2DaiGateway, arbSysMock } = await setupWithdrawalTest({
         l1Dai,
@@ -514,17 +514,17 @@ describe('L2DaiGateway', () => {
       'outboundTransfer(address,address,uint256,bytes)', // withdraw
       'outboundTransfer(address,address,uint256,uint256,uint256,bytes)', // withdrawTo
       'inboundEscrowAndCall(address,uint256,address,address,bytes)', // not really public
-      'postUpgradeInit()', // @todo not sure why this one is needed
+      'postUpgradeInit()', // this is used to fix storage slots after upgrade -- we don't need it
       'close()',
       'rely(address)',
       'deny(address)',
     ])
     await assertPublicNotMutableMethods('L2DaiGateway', [
       'calculateL2TokenAddress(address)',
-      'gasReserveIfCallRevert()', // @todo test this
+      'gasReserveIfCallRevert()',
       'getOutboundCalldata(address,address,address,uint256,bytes)',
 
-      // ęxposed contract state
+      // storage variables:
       'counterpartGateway()',
       'isOpen()',
       'exitNum()',
