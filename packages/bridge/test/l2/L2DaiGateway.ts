@@ -86,13 +86,13 @@ describe('L2DaiGateway', () => {
         depositAmount,
         data,
       )
-      const onWithdrawalMessengerCall = receiverMock.smocked.onTokenTransfer.calls[0]
+      const onDepositMessengerCall = receiverMock.smocked.onTokenTransfer.calls[0]
 
       expect(await l2Dai.balanceOf(receiverMock.address)).to.be.eq(depositAmount)
       expect(await l2Dai.totalSupply()).to.be.eq(depositAmount)
-      expect(onWithdrawalMessengerCall._sender).to.be.eq(sender.address)
-      expect(onWithdrawalMessengerCall._value).to.be.eq(depositAmount)
-      expect(onWithdrawalMessengerCall.data).to.be.eq(callHookData)
+      expect(onDepositMessengerCall._sender).to.be.eq(sender.address)
+      expect(onDepositMessengerCall._value).to.be.eq(depositAmount)
+      expect(onDepositMessengerCall.data).to.be.eq(callHookData)
       await expect(tx)
         .to.emit(l2DaiGateway, 'InboundTransferFinalized')
         .withArgs(l1Dai.address, sender.address, receiverMock.address, l2Dai.address, depositAmount, data)

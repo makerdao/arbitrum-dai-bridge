@@ -200,11 +200,10 @@ describe('L1DaiGateway', () => {
 
   describe('finalizeInboundTransfer', () => {
     const withdrawAmount = 100
+    const expectedTransferId = 1
+    const defaultWithdrawData = ethers.utils.defaultAbiCoder.encode(['uint256', 'bytes'], [expectedTransferId, '0x'])
 
     it('sends funds from the escrow', async () => {
-      const expectedTransferId = 1
-      const defaultWithdrawData = ethers.utils.defaultAbiCoder.encode(['uint256', 'bytes'], [expectedTransferId, '0x'])
-
       const [
         _deployer,
         inboxImpersonator,
@@ -238,9 +237,6 @@ describe('L1DaiGateway', () => {
     })
 
     it('sends funds from the escrow to the 3rd party', async () => {
-      const expectedTransferId = 1
-      const defaultWithdrawData = ethers.utils.defaultAbiCoder.encode(['uint256', 'bytes'], [expectedTransferId, '0x'])
-
       const [
         _deployer,
         inboxImpersonator,
@@ -282,11 +278,76 @@ describe('L1DaiGateway', () => {
         )
     })
 
+    describe.skip('SKIP (BUG) calls receiver contract', () => {
+      const callHookData = ethers.utils.defaultAbiCoder.encode(['uint256'], [42])
+      const defaultWithdrawData = ethers.utils.defaultAbiCoder.encode(
+        ['uint256', 'bytes'],
+        [expectedTransferId, callHookData],
+      )
+
+      it('calls receiver contract when callHookData is present', async () => {
+        const [
+          _deployer,
+          inboxImpersonator,
+          l1EscrowEOA,
+          l2DaiGatewayEOA,
+          routerEOA,
+          bridgeImpersonator,
+          outboxImpersonator,
+          sender,
+        ] = await ethers.getSigners()
+        const { l1Dai, outboxMock, l1DaiGateway } = await setupWithdrawalTest({
+          inboxImpersonator,
+          l1Escrow: l1EscrowEOA,
+          l2DaiGateway: l2DaiGatewayEOA,
+          router: routerEOA,
+          user1: sender,
+          bridgeImpersonator,
+          outboxImpersonator,
+        })
+        outboxMock.smocked.l2ToL1Sender.will.return.with(() => l2DaiGatewayEOA.address)
+        const receiverMock = await deployArbitrumContractMock('IERC677Receiver')
+        receiverMock.smocked.onTokenTransfer.will.return.with()
+
+        const finalizeWithdrawalTx = await l1DaiGateway
+          .connect(outboxImpersonator)
+          .finalizeInboundTransfer(
+            l1Dai.address,
+            sender.address,
+            receiverMock.address,
+            withdrawAmount,
+            defaultWithdrawData,
+          )
+        const onWithdrawalMessengerCall = receiverMock.smocked.onTokenTransfer.calls[0]
+
+        expect(await l1Dai.balanceOf(sender.address)).to.be.equal(0)
+        expect(await l1Dai.balanceOf(receiverMock.address)).to.be.equal(withdrawAmount)
+        expect(await l1Dai.balanceOf(l1EscrowEOA.address)).to.be.equal(initialTotalL1Supply - withdrawAmount)
+        expect(onWithdrawalMessengerCall._sender).to.be.eq(sender.address)
+        expect(onWithdrawalMessengerCall._value).to.be.eq(withdrawAmount)
+        expect(onWithdrawalMessengerCall.data).to.be.eq(callHookData)
+        await expect(finalizeWithdrawalTx)
+          .to.emit(l1DaiGateway, 'InboundTransferFinalized')
+          .withArgs(
+            l1Dai.address,
+            sender.address,
+            receiverMock.address,
+            expectedTransferId,
+            withdrawAmount,
+            defaultWithdrawData,
+          )
+        await expect(finalizeWithdrawalTx)
+          .to.emit(l1DaiGateway, 'TransferAndCallTriggered')
+          .withArgs(true, sender.address, receiverMock.address, withdrawAmount, callHookData)
+      })
+
+      it('doesnt revert when receiver contract return false')
+      it('doesnt revert when receiver contract reverts')
+      it('reverts when receiver address is not a contract')
+    })
+
     // pending withdrawals MUST success even if bridge is closed
     it('completes withdrawals even when closed', async () => {
-      const expectedTransferId = 1
-      const defaultWithdrawData = ethers.utils.defaultAbiCoder.encode(['uint256', 'bytes'], [expectedTransferId, '0x'])
-
       const [
         deployer,
         inboxImpersonator,
@@ -322,9 +383,6 @@ describe('L1DaiGateway', () => {
 
     // this is not easy to implement in the current implementation
     it.skip('SKIP reverts when called with a different token', async () => {
-      const expectedTransferId = 1
-      const defaultWithdrawData = ethers.utils.defaultAbiCoder.encode(['uint256', 'bytes'], [expectedTransferId, '0x'])
-
       const [
         _deployer,
         inboxImpersonator,
@@ -353,9 +411,6 @@ describe('L1DaiGateway', () => {
     })
 
     it.skip('SKIP reverts when called not by the outbox', async () => {
-      const expectedTransferId = 1
-      const defaultWithdrawData = ethers.utils.defaultAbiCoder.encode(['uint256', 'bytes'], [expectedTransferId, '0x'])
-
       const [
         _deployer,
         inboxImpersonator,
@@ -389,9 +444,6 @@ describe('L1DaiGateway', () => {
     })
 
     it('reverts when called by the outbox but not relying message from l2 counterpart', async () => {
-      const expectedTransferId = 1
-      const defaultWithdrawData = ethers.utils.defaultAbiCoder.encode(['uint256', 'bytes'], [expectedTransferId, '0x'])
-
       const [
         _deployer,
         inboxImpersonator,
@@ -486,6 +538,10 @@ describe('L1DaiGateway', () => {
       expect(await l1Dai.balanceOf(exitReceiverMock.address)).to.be.equal(withdrawAmount)
       expect(await l1Dai.balanceOf(l1EscrowEOA.address)).to.be.equal(initialTotalL1Supply - withdrawAmount)
     })
+
+    it('transfers exit and calls external contract when withdrawing')
+
+    it('reverts when trying to exit twice')
 
     it('reverts when not expected sender called', async () => {
       const [
