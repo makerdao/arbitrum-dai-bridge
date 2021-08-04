@@ -600,7 +600,7 @@ describe('L1DaiGateway', () => {
       expect(await l1Dai.balanceOf(l1EscrowEOA.address)).to.be.equal(initialTotalL1Supply - withdrawAmount)
     })
 
-    it.skip('[SKIP BUG] transfers exit and calls external contract when withdrawing', async () => {
+    it('transfers exit and calls external contract when withdrawing', async () => {
       const [
         _deployer,
         inboxImpersonator,
@@ -623,10 +623,6 @@ describe('L1DaiGateway', () => {
       const exitReceiverMock = await deployArbitrumContractMock('IERC677ReceiverAndExitReceiver')
       exitReceiverMock.smocked.onExitTransfer.will.return.with(true)
       const callHookData = ethers.utils.defaultAbiCoder.encode(['uint256'], [42])
-      const newWithdrawData = ethers.utils.defaultAbiCoder.encode(
-        ['uint256', 'bytes'],
-        [expectedTransferId, callHookData],
-      )
 
       const transferExitTx = await l1DaiGateway
         .connect(user1)
@@ -634,7 +630,7 @@ describe('L1DaiGateway', () => {
           expectedTransferId,
           user1.address,
           exitReceiverMock.address,
-          newWithdrawData,
+          callHookData,
           defaultWithdrawData,
         )
       const onExitTransferMessengerCall = exitReceiverMock.smocked.onExitTransfer.calls[0]
@@ -646,25 +642,22 @@ describe('L1DaiGateway', () => {
 
       await expect(transferExitTx)
         .to.emit(l1DaiGateway, 'WithdrawRedirected')
-        .withArgs(
-          user1.address,
-          exitReceiverMock.address,
-          expectedTransferId,
-          newWithdrawData,
-          defaultWithdrawData,
-          true,
-        )
+        .withArgs(user1.address, exitReceiverMock.address, expectedTransferId, callHookData, defaultWithdrawData, true)
 
       outboxMock.smocked.l2ToL1Sender.will.return.with(() => l2DaiGatewayEOA.address)
       // it should withdraw funds not to user1 but to exitReceiverMock and should call onTokenTransfer
-      await l1DaiGateway
+      const finalizeWithdrawalTx = await l1DaiGateway
         .connect(outboxImpersonator)
-        .finalizeInboundTransfer(l1Dai.address, user1.address, user1.address, withdrawAmount, newWithdrawData)
+        .finalizeInboundTransfer(l1Dai.address, user1.address, user1.address, withdrawAmount, defaultWithdrawData)
       const onWithdrawalMessengerCall = exitReceiverMock.smocked.onTokenTransfer.calls[0]
+
+      await expect(finalizeWithdrawalTx)
+        .to.emit(l1DaiGateway, 'TransferAndCallTriggered')
+        .withArgs(true, user1.address, exitReceiverMock.address, withdrawAmount, callHookData)
 
       expect(await onWithdrawalMessengerCall._sender).to.be.eq(user1.address)
       expect(await onWithdrawalMessengerCall._value).to.be.eq(withdrawAmount)
-      expect(await onWithdrawalMessengerCall.data).to.be.eq(callHookData) // here contract passes whole _newData instead of just callHookData
+      expect(await onWithdrawalMessengerCall.data).to.be.eq(callHookData)
       expect(await l1Dai.balanceOf(user1.address)).to.be.equal(0)
       expect(await l1Dai.balanceOf(exitReceiverMock.address)).to.be.equal(withdrawAmount)
       expect(await l1Dai.balanceOf(l1EscrowEOA.address)).to.be.equal(initialTotalL1Supply - withdrawAmount)
@@ -886,8 +879,8 @@ describe('L1DaiGateway', () => {
         bridgeImpersonator,
         outboxImpersonator,
         user1,
-        exitReceiverEOA,
       ] = await ethers.getSigners()
+      const [exitReceiverEOA] = await getRandomAddresses()
       const { l1DaiGateway } = await setupWithdrawalTest({
         inboxImpersonator,
         l1Escrow: l1EscrowEOA,
@@ -904,7 +897,7 @@ describe('L1DaiGateway', () => {
           .transferExitAndCall(
             expectedTransferId,
             user1.address,
-            exitReceiverEOA.address,
+            exitReceiverEOA,
             defaultWithdrawData,
             defaultWithdrawData,
           ),
