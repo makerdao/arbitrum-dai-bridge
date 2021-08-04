@@ -63,6 +63,7 @@ export async function getRandomAddresses(n: number = 10): Promise<string[]> {
   return await Promise.all(arr.map(getRandomAddress))
 }
 
+// todo: refactor to support merging interfaces?
 export async function deployArbitrumContractMock<T extends ContractFactory>(
   name: string,
   opts: {
