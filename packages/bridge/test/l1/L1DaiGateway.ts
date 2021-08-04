@@ -278,7 +278,7 @@ describe('L1DaiGateway', () => {
         )
     })
 
-    describe.skip('SKIP (BUG) calls receiver contract', () => {
+    describe.skip('[SKIP BUG] calls receiver contract', () => {
       const callHookData = ethers.utils.defaultAbiCoder.encode(['uint256'], [42])
       const defaultWithdrawData = ethers.utils.defaultAbiCoder.encode(
         ['uint256', 'bytes'],
@@ -382,7 +382,7 @@ describe('L1DaiGateway', () => {
     })
 
     // this is not easy to implement in the current implementation
-    it.skip('SKIP reverts when called with a different token', async () => {
+    it.skip('[SKIP BUG] reverts when called with a different token', async () => {
       const [
         _deployer,
         inboxImpersonator,
@@ -410,7 +410,7 @@ describe('L1DaiGateway', () => {
         .finalizeInboundTransfer(l2Dai.address, user1.address, user1.address, withdrawAmount, defaultWithdrawData)
     })
 
-    it.skip('SKIP reverts when called not by the outbox', async () => {
+    it.skip('[SKIP BUG] reverts when called not by the outbox', async () => {
       const [
         _deployer,
         inboxImpersonator,
@@ -796,7 +796,7 @@ describe('L1DaiGateway', () => {
       expect(await l1Dai.balanceOf(l1EscrowEOA.address)).to.be.equal(initialTotalL1Supply - withdrawAmount)
     })
 
-    it.skip('SKIP reverts when exitReceiver reverts', async () => {
+    it.skip('[SKIP TO IMPLEMENT] reverts when exitReceiver reverts', async () => {
       // likely a smock bug
       const [
         _deployer,

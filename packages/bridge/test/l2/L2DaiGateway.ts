@@ -211,7 +211,7 @@ describe('L2DaiGateway', () => {
     })
 
     // not implemented yet
-    it.skip('SKIP reverts when called not by inbox', async () => {
+    it.skip('[SKIP BUG] reverts when called not by inbox', async () => {
       const [sender, l1Dai, router, dummyAcc] = await ethers.getSigners()
       const { l2DaiGateway } = await setupTest({ l1Dai, l1DaiBridge: sender, router })
       const receiverAddress = sender.address
