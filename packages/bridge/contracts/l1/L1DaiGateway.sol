@@ -30,9 +30,33 @@ interface TokenLike {
 }
 
 contract L1DaiGateway is L1ArbitrumExtendedGateway {
+  // --- Auth ---
+  mapping(address => uint256) public wards;
+
+  function rely(address usr) external auth {
+    wards[usr] = 1;
+    emit Rely(usr);
+  }
+
+  function deny(address usr) external auth {
+    wards[usr] = 0;
+    emit Deny(usr);
+  }
+
+  modifier auth {
+    require(wards[msg.sender] == 1, "L1DaiGateway/not-authorized");
+    _;
+  }
+
+  event Rely(address indexed usr);
+  event Deny(address indexed usr);
+
   address public immutable l1Dai;
   address public immutable l2Dai;
   address public immutable l1Escrow;
+  uint256 public isOpen = 1;
+
+  event Closed();
 
   constructor(
     address _l2Counterpart,
@@ -42,10 +66,19 @@ contract L1DaiGateway is L1ArbitrumExtendedGateway {
     address _l2Dai,
     address _l1Escrow
   ) public {
+    wards[msg.sender] = 1;
+    emit Rely(msg.sender);
+
     L1ArbitrumExtendedGateway._initialize(_l2Counterpart, _l1Router, _inbox);
     l1Dai = _l1Dai;
     l2Dai = _l2Dai;
     l1Escrow = _l1Escrow;
+  }
+
+  function close() external auth {
+    isOpen = 0;
+
+    emit Closed();
   }
 
   function createOutboundTx(
@@ -58,6 +91,9 @@ contract L1DaiGateway is L1ArbitrumExtendedGateway {
     uint256 _maxSubmissionCost,
     bytes memory _extraData
   ) internal virtual override returns (uint256) {
+    // do not allow initiating new xchain messages if bridge is closed
+    require(isOpen == 1, "L1DaiGateway/closed");
+
     return
       sendTxToL2(
         _from,
@@ -79,7 +115,6 @@ contract L1DaiGateway is L1ArbitrumExtendedGateway {
     uint256 _gasPriceBid,
     bytes memory _data
   ) internal virtual override returns (uint256) {
-    // msg.value does not include weth withdrawn from user, we need to add in that amount
     uint256 seqNum = IInbox(_inbox).createRetryableTicket(
       _to,
       _l2CallValue,
@@ -110,13 +145,6 @@ contract L1DaiGateway is L1ArbitrumExtendedGateway {
     TokenLike(_l1Token).transferFrom(l1Escrow, _dest, _amount);
   }
 
-  /**
-   * @notice Calculate the address used when bridging an ERC20 token
-   * @dev this always returns the same as the L1 oracle, but may be out of date.
-   * For example, a custom token may have been registered but not deploy or the contract self destructed.
-   * @param l1ERC20 address of L1 token
-   * @return L2 address of a bridged ERC20 token
-   */
   function _calculateL2TokenAddress(address l1ERC20)
     internal
     view

@@ -31,8 +31,32 @@ interface Mintable {
 contract L2DaiGateway is L2ArbitrumGateway {
   using SafeERC20 for IERC20;
 
+  // --- Auth ---
+  mapping(address => uint256) public wards;
+
+  function rely(address usr) external auth {
+    wards[usr] = 1;
+    emit Rely(usr);
+  }
+
+  function deny(address usr) external auth {
+    wards[usr] = 0;
+    emit Deny(usr);
+  }
+
+  modifier auth {
+    require(wards[msg.sender] == 1, "L2DaiGateway/not-authorized");
+    _;
+  }
+
+  event Rely(address indexed usr);
+  event Deny(address indexed usr);
+
   address public immutable l1Dai;
   address public immutable l2Dai;
+  uint256 public isOpen = 1;
+
+  event Closed();
 
   constructor(
     address _l1Counterpart,
@@ -40,17 +64,20 @@ contract L2DaiGateway is L2ArbitrumGateway {
     address _l1Dai,
     address _l2Dai
   ) public {
+    wards[msg.sender] = 1;
+    emit Rely(msg.sender);
+
     L2ArbitrumGateway._initialize(_l1Counterpart, _router);
     l1Dai = _l1Dai;
     l2Dai = _l2Dai;
   }
 
-  /**
-   * @notice internal utility function used to handle when no contract is deployed at expected address
-   * @param l1ERC20 L1 address of ERC20
-   * @param expectedL2Address L2 address of ERC20
-   * @param deployData encoded symbol/name/decimal data for initial deploy
-   */
+  function close() external auth {
+    isOpen = 0;
+
+    emit Closed();
+  }
+
   function handleNoContract(
     address l1ERC20,
     address expectedL2Address,
@@ -65,13 +92,6 @@ contract L2DaiGateway is L2ArbitrumGateway {
     return true;
   }
 
-  /**
-   * @notice Calculate the address used when bridging an ERC20 token
-   * @dev this always returns the same as the L1 oracle, but may be out of date.
-   * For example, a custom token may have been registered but not deploy or the contract self destructed.
-   * @param l1ERC20 address of L1 token
-   * @return L2 address of a bridged ERC20 token
-   */
   function _calculateL2TokenAddress(address l1ERC20)
     internal
     view
@@ -79,7 +99,7 @@ contract L2DaiGateway is L2ArbitrumGateway {
     override
     returns (address)
   {
-    require(l1ERC20 == l1Dai, "WRONG_L1Dai");
+    require(l1ERC20 == l1Dai, "L2DaiGateway/token-not-dai");
     return l2Dai;
   }
 
@@ -98,6 +118,9 @@ contract L2DaiGateway is L2ArbitrumGateway {
     uint256 _amount,
     bytes memory _extraData
   ) internal virtual override returns (uint256) {
+    // do not allow initiating new xchain messages if bridge is closed
+    require(isOpen == 1, "L2DaiGateway/closed");
+
     return sendTxToL1(_from, 0, getOutboundCalldata(_l1Token, _from, _to, _amount, _extraData));
   }
 

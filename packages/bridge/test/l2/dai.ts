@@ -3,7 +3,7 @@ import { ethers, web3 } from 'hardhat'
 
 import { Dai, Dai__factory } from '../../typechain'
 import { testAuth } from '../helpers/auth'
-import { assertPublicMethods, getRandomAddresses } from '../helpers/helpers'
+import { assertPublicMutableMethods, getRandomAddresses } from '../helpers/helpers'
 
 const { signERC2612Permit } = require('./eth-permit/eth-permit')
 
@@ -367,7 +367,7 @@ describe('Dai', () => {
   })
 
   it('has correct public interface', async () => {
-    await assertPublicMethods('Dai', [
+    await assertPublicMutableMethods('Dai', [
       'rely(address)',
       'deny(address)',
       'approve(address,uint256)',
