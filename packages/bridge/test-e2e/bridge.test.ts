@@ -42,12 +42,20 @@ describe('bridge', () => {
     console.log('depositAmount', depositAmount.toString())
     const maxGas = 100000
     const gasPriceBid = await l2Deployer.getGasPrice()
-    const [submissionPrice] = await deployment.arbRetryableTx.getSubmissionPrice(2)
+    const onlyData = '0x00'
+    const calldata = await deployment.l1DaiGateway.getOutboundCalldata(
+      deployment.l1Dai.address,
+      l1Deployer.address,
+      l1Deployer.address,
+      depositAmount,
+      onlyData,
+    )
+    console.log('calldata.length', calldata.length)
+    const [submissionPrice] = await deployment.arbRetryableTx.getSubmissionPrice(calldata.length)
     console.log('submissionPrice: ', submissionPrice)
-    const defaultData = defaultAbiCoder.encode(['uint256', 'bytes'], [submissionPrice, '0x00'])
+    const defaultData = defaultAbiCoder.encode(['uint256', 'bytes'], [submissionPrice, onlyData])
 
     await waitForTx(deployment.l1Dai.approve(deployment.l1DaiGateway.address, depositAmount))
-
     console.log('Sending deposit request!')
     await waitForTx(
       deployment.l1DaiGateway.outboundTransfer(
