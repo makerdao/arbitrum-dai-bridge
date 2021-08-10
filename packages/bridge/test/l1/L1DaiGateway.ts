@@ -1,6 +1,6 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/dist/src/signer-with-address'
 import { expect } from 'chai'
-import { defaultAbiCoder } from 'ethers/lib/utils'
+import { defaultAbiCoder, parseUnits } from 'ethers/lib/utils'
 import { ethers } from 'hardhat'
 
 import { ArbDai__factory, Dai__factory, L1DaiGateway__factory, L2DaiGateway__factory } from '../../typechain'
@@ -33,10 +33,12 @@ describe('L1DaiGateway', () => {
     const defaultGas = 42
     const maxSubmissionCost = 7
     const callHookData = '0x12'
+    const defaultEthValue = parseUnits('0.1', 'ether')
     const defaultData = defaultAbiCoder.encode(['uint256', 'bytes'], [maxSubmissionCost, callHookData])
 
     it('escrows funds and sends xdomain message', async () => {
       const [_deployer, inboxImpersonator, l1EscrowEOA, l2DaiGatewayEOA, routerEOA, sender] = await ethers.getSigners()
+      const defaultInboxBalance = await inboxImpersonator.getBalance()
       const { l1Dai, inboxMock, l1DaiGateway } = await setupTest({
         inboxImpersonator,
         l1Escrow: l1EscrowEOA,
@@ -48,7 +50,9 @@ describe('L1DaiGateway', () => {
       await l1Dai.connect(sender).approve(l1DaiGateway.address, depositAmount)
       const depositTx = await l1DaiGateway
         .connect(sender)
-        .outboundTransfer(l1Dai.address, sender.address, depositAmount, defaultGas, 0, defaultData)
+        .outboundTransfer(l1Dai.address, sender.address, depositAmount, defaultGas, 0, defaultData, {
+          value: defaultEthValue,
+        })
       const depositCallToMessengerCall = inboxMock.smocked.createRetryableTicket.calls[0]
 
       const expectedDepositId = 0
@@ -62,6 +66,7 @@ describe('L1DaiGateway', () => {
       expect(await l1Dai.balanceOf(l1DaiGateway.address)).to.be.eq(0)
       expect(await l1Dai.balanceOf(l1EscrowEOA.address)).to.be.eq(depositAmount)
 
+      expect(await inboxImpersonator.getBalance()).to.equal(defaultInboxBalance.add(defaultEthValue))
       expect(depositCallToMessengerCall.destAddr).to.equal(l2DaiGatewayEOA.address)
       expect(depositCallToMessengerCall.l2CallValue).to.equal(0)
       expect(depositCallToMessengerCall.maxSubmissionCost).to.equal(maxSubmissionCost)

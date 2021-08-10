@@ -105,6 +105,7 @@ contract L1DaiGateway is L1ArbitrumExtendedGateway {
       );
   }
 
+  // @todo i think it's safe to remove this as override does the same thing
   function sendTxToL2(
     address _inbox,
     address _to,
@@ -115,7 +116,7 @@ contract L1DaiGateway is L1ArbitrumExtendedGateway {
     uint256 _gasPriceBid,
     bytes memory _data
   ) internal virtual override returns (uint256) {
-    uint256 seqNum = IInbox(_inbox).createRetryableTicket(
+    uint256 seqNum = IInbox(_inbox).createRetryableTicket{value: msg.value}(
       _to,
       _l2CallValue,
       _maxSubmissionCost,
