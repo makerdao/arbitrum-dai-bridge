@@ -17,8 +17,6 @@ interface Dependencies {
   l2: {
     deployer: Signer
     router: string
-    arbRetryableTx: string
-    nodeInterface: string
   }
 }
 
@@ -58,16 +56,6 @@ export async function deploy(deps: Dependencies) {
     l2Dai,
     l2DaiGateway,
     l1Dai: (await ethers.getContractAt('Dai', deps.l1.dai, deps.l1.deployer)) as Dai,
-    arbRetryableTx: new ethers.Contract(
-      deps.l2.arbRetryableTx,
-      require('../../test/helpers/test-artifacts/ArbRetryableTx.json').abi,
-      deps.l2.deployer,
-    ),
-    nodeInterface: new ethers.Contract(
-      deps.l2.nodeInterface,
-      require('../../test/helpers/test-artifacts/NodeInterface.json').abi,
-      deps.l2.deployer,
-    ),
   }
 }
 
@@ -78,8 +66,6 @@ export async function useDeployment(deps: Dependencies) {
     l2Dai: '0xd591dF5D2b729F2DebaBA909c58872b628F02D7C',
     l2DaiGateway: '0xA43e9cf3df755D31373217767190FD19c9854531',
     l1Dai: '0xd9e66A2f546880EA4d800F189d6F12Cc15Bff281',
-    arbRetryableTx: '0x000000000000000000000000000000000000006E',
-    nodeInterface: '0x00000000000000000000000000000000000000C8',
   }
 
   return {
@@ -96,15 +82,5 @@ export async function useDeployment(deps: Dependencies) {
       deps.l2.deployer,
     )) as L2DaiGateway,
     l1Dai: (await ethers.getContractAt('Dai', addresses.l1Dai, deps.l1.deployer)) as Dai,
-    arbRetryableTx: new ethers.Contract(
-      addresses.arbRetryableTx,
-      require('../../test/helpers/test-artifacts/ArbRetryableTx.json').abi,
-      deps.l2.deployer,
-    ),
-    nodeInterface: new ethers.Contract(
-      deps.l2.nodeInterface,
-      require('../../test/helpers/test-artifacts/NodeInterface.json').abi,
-      deps.l2.deployer,
-    ),
   }
 }
