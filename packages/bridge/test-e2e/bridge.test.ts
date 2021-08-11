@@ -1,17 +1,20 @@
 require('hardhat')
 
+import { expect } from 'chai'
 import { defaultAbiCoder, parseUnits } from 'ethers/lib/utils'
 import { ethers } from 'hardhat'
 import { mapValues } from 'lodash'
-import { depositToStandardBridge, getGasPriceBid, getMaxSubmissionPrice } from './helpers/arbitrum'
+import { waitToRelayTxsToL2 } from './helpers/arbitrum'
+import { depositToStandardBridge, getGasPriceBid, getMaxSubmissionPrice } from './helpers/arbitrum/bridge'
 import { deploy, useDeployment } from './helpers/deploy'
 import { getRequiredEnv, waitForTx } from './helpers/utils'
 
 describe('bridge', () => {
-  it('works', async () => {
+  it('deposits funds', async () => {
     const pkey = getRequiredEnv('E2E_TESTS_PKEY')
     const l1 = new ethers.providers.JsonRpcProvider('https://rinkeby.infura.io/v3/54c77d74180948c98dc94473437438f4')
     const l2 = new ethers.providers.JsonRpcProvider('https://rinkeby.arbitrum.io/rpc')
+    const inboxAddress = '0x578BAde599406A8fE3d24Fd7f7211c0911F5B29e'
 
     const l1Deployer = new ethers.Wallet(pkey, l1)
     const l2Deployer = new ethers.Wallet(pkey, l2)
@@ -38,18 +41,27 @@ describe('bridge', () => {
       ),
     )
 
+    const initialL2Balance = await deployment.l2Dai.balanceOf(l1Deployer.address)
+
     const depositAmount = parseUnits('7', 'ether')
 
     await waitForTx(deployment.l1Dai.approve(deployment.l1DaiGateway.address, depositAmount))
 
-    await depositToStandardBridge({
-      l2Provider: l2,
-      from: l1Deployer,
-      to: l1Deployer.address,
-      l1Gateway: deployment.l1DaiGateway,
-      l1TokenAddress: deployment.l1Dai.address,
-      l2GatewayAddress: deployment.l2DaiGateway.address,
-      deposit: depositAmount,
-    })
+    await waitToRelayTxsToL2(
+      depositToStandardBridge({
+        l2Provider: l2,
+        from: l1Deployer,
+        to: l1Deployer.address,
+        l1Gateway: deployment.l1DaiGateway,
+        l1TokenAddress: deployment.l1Dai.address,
+        l2GatewayAddress: deployment.l2DaiGateway.address,
+        deposit: depositAmount,
+      }),
+      inboxAddress,
+      l1,
+      l2,
+    )
+
+    expect(await deployment.l2Dai.balanceOf(l1Deployer.address)).to.be.eq(initialL2Balance.add(depositAmount))
   })
 })

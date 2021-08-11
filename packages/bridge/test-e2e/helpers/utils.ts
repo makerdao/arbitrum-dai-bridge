@@ -89,7 +89,7 @@ export async function deployUsingFactoryAndVerify<T extends ContractFactory>(
   return contractDeployed as any
 }
 
-export async function waitForTx(tx: Promise<any>): Promise<any> {
+export async function waitForTx(tx: Promise<any>): Promise<providers.TransactionReceipt> {
   const resolvedTx = await tx
   return await resolvedTx.wait()
 }
