@@ -26,6 +26,7 @@ describe('bridge', () => {
         deployer: l2Deployer,
         router: '0x9413AD42910c1eA60c737dB5f58d1C504498a3cD',
         arbRetryableTx: '0x000000000000000000000000000000000000006E',
+        nodeInterface: '0x00000000000000000000000000000000000000C8',
       },
     })
 
@@ -40,23 +41,39 @@ describe('bridge', () => {
 
     const depositAmount = parseUnits('42', 'ether')
     console.log('depositAmount', depositAmount.toString())
-    const maxGas = 100000
+
     const gasPriceBid = await l2Deployer.getGasPrice()
-    const onlyData = '0x00'
-    const calldata = await deployment.l1DaiGateway.getOutboundCalldata(
+    console.log('gasPriceBid: ', gasPriceBid)
+
+    const onlyData = '0x'
+    const depositCalldata = await deployment.l1DaiGateway.getOutboundCalldata(
       deployment.l1Dai.address,
       l1Deployer.address,
       l1Deployer.address,
       depositAmount,
       onlyData,
     )
-    console.log('calldata.length', calldata.length)
-    const [submissionPrice] = await deployment.arbRetryableTx.getSubmissionPrice(calldata.length)
-    console.log('submissionPrice: ', submissionPrice)
-    const defaultData = defaultAbiCoder.encode(['uint256', 'bytes'], [submissionPrice, onlyData])
+    const [submissionPrice] = await deployment.arbRetryableTx.getSubmissionPrice(depositCalldata.length)
+    const maxSubmissionPrice = submissionPrice.mul(4)
+    console.log('maxSubmissionPrice: ', maxSubmissionPrice)
+    const defaultData = defaultAbiCoder.encode(['uint256', 'bytes'], [maxSubmissionPrice, onlyData])
 
-    await waitForTx(deployment.l1Dai.approve(deployment.l1DaiGateway.address, depositAmount))
+    const [maxGas] = await deployment.nodeInterface.estimateRetryableTicket(
+      deployment.l1DaiGateway.address,
+      ethers.utils.parseEther('0.05'),
+      deployment.l2DaiGateway.address,
+      0,
+      maxSubmissionPrice,
+      l1Deployer.address,
+      l1Deployer.address,
+      0,
+      0,
+      depositCalldata,
+    )
+    console.log('maxGas: ', maxGas.toString())
+    // await waitForTx(deployment.l1Dai.approve(deployment.l1DaiGateway.address, depositAmount))
     console.log('Sending deposit request!')
+    const ethValue = await maxSubmissionPrice.add(gasPriceBid.mul(maxGas))
     await waitForTx(
       deployment.l1DaiGateway.outboundTransfer(
         deployment.l1Dai.address,
@@ -66,7 +83,7 @@ describe('bridge', () => {
         gasPriceBid,
         defaultData,
         {
-          value: parseUnits('1', 'ether'),
+          value: ethValue,
         },
       ),
     )

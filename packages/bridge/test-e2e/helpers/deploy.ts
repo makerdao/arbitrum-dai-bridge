@@ -18,6 +18,7 @@ interface Dependencies {
     deployer: Signer
     router: string
     arbRetryableTx: string
+    nodeInterface: string
   }
 }
 
@@ -51,8 +52,6 @@ export async function deploy(deps: Dependencies) {
     "Expected future address of l1DaiGateway doesn't match actual address!",
   )
 
-  await l1Escrow.approve(deps.l1.dai, l1DaiGatewayFutureAddr, MAX_UINT256) // allow accessing escrow from the bridge
-
   return {
     l1DaiGateway,
     l1Escrow,
@@ -64,17 +63,23 @@ export async function deploy(deps: Dependencies) {
       require('../../test/helpers/test-artifacts/ArbRetryableTx.json').abi,
       deps.l2.deployer,
     ),
+    nodeInterface: new ethers.Contract(
+      deps.l2.nodeInterface,
+      require('../../test/helpers/test-artifacts/NodeInterface.json').abi,
+      deps.l2.deployer,
+    ),
   }
 }
 
 export async function useDeployment(deps: Dependencies) {
   const addresses = {
-    l1DaiGateway: '0xFDc297d3827b329dc2eCdF9cB918644A56719Cd2',
-    l1Escrow: '0x371015546206585D438D0cd655DBee7D86c7d4f2',
-    l2Dai: '0xb6Bc3Adc7d46c0DC91bAf019EB864593baD84911',
-    l2DaiGateway: '0x1320bF8f23b28b7b4160Bd08BA01AD70773957Ca',
+    l1DaiGateway: '0x36Dc05e793009C7B28f4887054f4a6E351475d70',
+    l1Escrow: '0xC88e0cDAA48FA8cA12212b157fdee617be4cBD70',
+    l2Dai: '0xd591dF5D2b729F2DebaBA909c58872b628F02D7C',
+    l2DaiGateway: '0xA43e9cf3df755D31373217767190FD19c9854531',
     l1Dai: '0xd9e66A2f546880EA4d800F189d6F12Cc15Bff281',
     arbRetryableTx: '0x000000000000000000000000000000000000006E',
+    nodeInterface: '0x00000000000000000000000000000000000000C8',
   }
 
   return {
@@ -94,6 +99,11 @@ export async function useDeployment(deps: Dependencies) {
     arbRetryableTx: new ethers.Contract(
       addresses.arbRetryableTx,
       require('../../test/helpers/test-artifacts/ArbRetryableTx.json').abi,
+      deps.l2.deployer,
+    ),
+    nodeInterface: new ethers.Contract(
+      deps.l2.nodeInterface,
+      require('../../test/helpers/test-artifacts/NodeInterface.json').abi,
       deps.l2.deployer,
     ),
   }
