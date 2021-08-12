@@ -9,6 +9,7 @@ export async function waitToRelayTxsToL2(
   l2: ethers.providers.BaseProvider,
 ) {
   const l1Tx = await inProgressL1Tx
+  console.log('Waiting for xchain messages to be relayed... Hash: ', l1Tx.transactionHash)
   const seqNums = await getInboxSeqNumFromContractTransaction(l1Tx, inboxAddress, l1)
   const seqNum = seqNums && seqNums[0]
   if (!seqNum) {
