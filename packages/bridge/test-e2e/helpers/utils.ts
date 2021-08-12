@@ -100,3 +100,7 @@ export function getRequiredEnv(key: string): string {
 
   return value
 }
+
+export function getOptionalEnv(key: string): string | undefined {
+  return process.env[key]
+}

@@ -59,28 +59,22 @@ export async function deploy(deps: Dependencies) {
   }
 }
 
-export async function useDeployment(deps: Dependencies) {
-  const addresses = {
-    l1DaiGateway: '0x36Dc05e793009C7B28f4887054f4a6E351475d70',
-    l1Escrow: '0xC88e0cDAA48FA8cA12212b157fdee617be4cBD70',
-    l2Dai: '0xd591dF5D2b729F2DebaBA909c58872b628F02D7C',
-    l2DaiGateway: '0xA43e9cf3df755D31373217767190FD19c9854531',
-    l1Dai: '0xd9e66A2f546880EA4d800F189d6F12Cc15Bff281',
-  }
+export async function useDeployment(deps: Dependencies, staticConfigString: string) {
+  const staticConfig = JSON.parse(staticConfigString)
 
   return {
     l1DaiGateway: (await ethers.getContractAt(
       'L1DaiGateway',
-      addresses.l1DaiGateway,
+      staticConfig.l1DaiGateway,
       deps.l1.deployer,
     )) as L1DaiGateway,
-    l1Escrow: (await ethers.getContractAt('L1Escrow', addresses.l1Escrow, deps.l1.deployer)) as L1Escrow,
-    l2Dai: (await ethers.getContractAt('ArbDai', addresses.l2Dai, deps.l2.deployer)) as ArbDai,
+    l1Escrow: (await ethers.getContractAt('L1Escrow', staticConfig.l1Escrow, deps.l1.deployer)) as L1Escrow,
+    l2Dai: (await ethers.getContractAt('ArbDai', staticConfig.l2Dai, deps.l2.deployer)) as ArbDai,
     l2DaiGateway: (await ethers.getContractAt(
       'L2DaiGateway',
-      addresses.l2DaiGateway,
+      staticConfig.l2DaiGateway,
       deps.l2.deployer,
     )) as L2DaiGateway,
-    l1Dai: (await ethers.getContractAt('Dai', addresses.l1Dai, deps.l1.deployer)) as Dai,
+    l1Dai: (await ethers.getContractAt('Dai', staticConfig.l1Dai, deps.l1.deployer)) as Dai,
   }
 }
