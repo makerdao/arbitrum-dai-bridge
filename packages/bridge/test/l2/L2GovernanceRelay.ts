@@ -1,3 +1,4 @@
+import { assertPublicMutableMethods, simpleDeploy } from '@makerdao/hardhat-utils'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/dist/src/signer-with-address'
 import { expect } from 'chai'
 import { ethers } from 'hardhat'
@@ -8,7 +9,6 @@ import {
   L2GovernanceRelay__factory,
   TestDaiMintSpell__factory,
 } from '../../typechain'
-import { assertPublicMutableMethods, deploy } from '../helpers/helpers'
 
 const errorMessages = {
   invalidMessenger: 'OVM_XCHAIN: messenger contract unauthenticated',
@@ -49,7 +49,7 @@ describe('L2GovernanceRelay', () => {
         l1GovernanceRelay: l1GovernanceRelayImpersonator,
         deployer,
       })
-      const badSpell = await deploy<BadSpell__factory>('BadSpell', [])
+      const badSpell = await simpleDeploy<BadSpell__factory>('BadSpell', [])
 
       await expect(
         l2GovernanceRelay
@@ -63,7 +63,7 @@ describe('L2GovernanceRelay', () => {
     it('assigns all variables properly', async () => {
       const [l1GovRelay] = await ethers.getSigners()
 
-      const l2GovRelay = await deploy<L2GovernanceRelay__factory>('L2GovernanceRelay', [l1GovRelay.address])
+      const l2GovRelay = await simpleDeploy<L2GovernanceRelay__factory>('L2GovernanceRelay', [l1GovRelay.address])
 
       expect(await l2GovRelay.l1GovernanceRelay()).to.eq(l1GovRelay.address)
     })
@@ -79,15 +79,15 @@ async function setupTest(signers: {
   l1GovernanceRelay: SignerWithAddress
   deployer: SignerWithAddress
 }) {
-  const l2Dai = await deploy<ArbDai__factory>('ArbDai', [signers.l1Dai.address])
+  const l2Dai = await simpleDeploy<ArbDai__factory>('ArbDai', [signers.l1Dai.address])
 
-  const l2GovernanceRelay = await deploy<L2GovernanceRelay__factory>('L2GovernanceRelay', [
+  const l2GovernanceRelay = await simpleDeploy<L2GovernanceRelay__factory>('L2GovernanceRelay', [
     signers.l1GovernanceRelay.address,
   ])
   await l2Dai.rely(l2GovernanceRelay.address)
   await l2Dai.deny(signers.deployer.address)
 
-  const l2daiMintSpell = await deploy<TestDaiMintSpell__factory>('TestDaiMintSpell', [])
+  const l2daiMintSpell = await simpleDeploy<TestDaiMintSpell__factory>('TestDaiMintSpell', [])
 
   return { l2Dai, l2GovernanceRelay, l2daiMintSpell }
 }

@@ -7,7 +7,7 @@
     "clean": "hardhat clean && rm -rf artifacts cache",
     "format": "prettier --check \"./**/*.{ts,sol}\"",
     "format:fix": "prettier --write \"./**/*.{ts,sol}\"",
-    "lint": "eslint --ext .ts test hardhat.config.ts",
+    "lint": "eslint --ext .ts test test-e2e arbitrum-helpers hardhat.config.ts",
     "lint:fix": "yarn lint --fix",
     "typecheck": "tsc --noEmit",
     "test": "yarn test:unit && yarn test-arbitrum",
@@ -18,7 +18,6 @@
   },
   "devDependencies": {
     "@codechecks/client": "0.1.10-beta",
-    "@eth-optimism/smock": "^1.1.9",
     "@nomiclabs/ethereumjs-vm": "^4.2.2",
     "@nomiclabs/hardhat-ethers": "^2.0.2",
     "@nomiclabs/hardhat-etherscan": "^2.1.2",
@@ -55,15 +54,13 @@
     "ts-node": "^9.0.0",
     "typechain": "^5.0.0",
     "typescript": "^4.0.2",
-    "utf8": "^3.0.0"
+    "utf8": "^3.0.0",
+    "@eth-optimism/smock": "=1.1.9"
   },
   "resolutions": {
     "ethers": "5.4.0",
     "@ethersproject/providers": "5.4.0",
     "@ethersproject/contracts": "5.4.0",
     "@ethersproject/abi": "5.4.0"
-  },
-  "dependencies": {
-    "dotenv": "^10.0.0"
   }
 }

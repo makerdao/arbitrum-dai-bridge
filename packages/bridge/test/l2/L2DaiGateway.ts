@@ -1,16 +1,16 @@
+import {
+  assertPublicMutableMethods,
+  assertPublicNotMutableMethods,
+  getRandomAddresses,
+  simpleDeploy,
+  testAuth,
+} from '@makerdao/hardhat-utils'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect } from 'chai'
 import { ethers } from 'hardhat'
 
+import { deployArbitrumContractMock } from '../../arbitrum-helpers/mocks'
 import { ArbDai__factory, L1DaiGateway__factory, L2DaiGateway__factory } from '../../typechain'
-import { testAuth } from '../helpers/auth'
-import {
-  assertPublicMutableMethods,
-  assertPublicNotMutableMethods,
-  deploy,
-  deployArbitrumContractMock,
-  getRandomAddresses,
-} from '../helpers/helpers'
 
 const initialTotalL2Supply = 3000
 const errorMessages = {
@@ -478,7 +478,12 @@ describe('L2DaiGateway', () => {
     it('assigns all variables properly', async () => {
       const [l1Counterpart, router, l1Dai, l2Dai] = await getRandomAddresses()
 
-      const l2DaiGateway = await deploy<L2DaiGateway__factory>('L2DaiGateway', [l1Counterpart, router, l1Dai, l2Dai])
+      const l2DaiGateway = await simpleDeploy<L2DaiGateway__factory>('L2DaiGateway', [
+        l1Counterpart,
+        router,
+        l1Dai,
+        l2Dai,
+      ])
 
       expect(await l2DaiGateway.counterpartGateway()).to.be.eq(l1Counterpart)
       expect(await l2DaiGateway.router()).to.be.eq(router)
@@ -535,15 +540,15 @@ describe('L2DaiGateway', () => {
     ])
   })
 
-  testAuth(
-    'L2DaiGateway',
-    async () => {
+  testAuth({
+    name: 'L2DaiGateway',
+    getDeployArgs: async () => {
       const [l1Counterpart, router, l1Dai, l2Dai] = await getRandomAddresses()
 
       return [l1Counterpart, router, l1Dai, l2Dai]
     },
-    [(c) => c.close()],
-  )
+    authedMethods: [(c) => c.close()],
+  })
 })
 
 async function setupTest(signers: {
@@ -551,8 +556,8 @@ async function setupTest(signers: {
   l1DaiBridge: SignerWithAddress
   router: SignerWithAddress
 }) {
-  const l2Dai = await deploy<ArbDai__factory>('ArbDai', [signers.l1Dai.address])
-  const l2DaiGateway = await deploy<L2DaiGateway__factory>('L2DaiGateway', [
+  const l2Dai = await simpleDeploy<ArbDai__factory>('ArbDai', [signers.l1Dai.address])
+  const l2DaiGateway = await simpleDeploy<L2DaiGateway__factory>('L2DaiGateway', [
     signers.l1DaiBridge.address,
     signers.router.address,
     signers.l1Dai.address,

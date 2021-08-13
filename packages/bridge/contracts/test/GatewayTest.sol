@@ -50,8 +50,6 @@ abstract contract L1ArbitrumTestMessenger is L1ArbitrumMessenger {
     uint256 _gasPriceBid,
     bytes memory _data
   ) internal virtual override returns (uint256) {
-    console.log("_l2CallValue", _l2CallValue);
-    // console.log("_data", _data);
     (bool success, bytes memory retdata) = _to.call{value: _l2CallValue}(_data);
     assembly {
       switch success
@@ -231,7 +229,6 @@ contract L1DaiGatewayTester is L1ArbitrumTestMessenger, L1DaiGateway {
     uint256 _gasPriceBid,
     bytes memory _data
   ) internal virtual override(L1DaiGateway, L1ArbitrumTestMessenger) returns (uint256) {
-    console.log("_to", _to);
     return
       L1ArbitrumTestMessenger.sendTxToL2(
         _inbox,

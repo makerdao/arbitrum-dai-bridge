@@ -1,6 +1,5 @@
 import { expect } from 'chai'
 import { BigNumber, ethers, providers, utils } from 'ethers'
-import { waitForTx } from '../utils'
 
 export async function waitToRelayTxsToL2(
   inProgressL1Tx: Promise<providers.TransactionReceipt>,

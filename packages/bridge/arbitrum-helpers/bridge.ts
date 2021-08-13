@@ -1,7 +1,8 @@
+import { waitForTx } from '@makerdao/hardhat-utils'
 import { BigNumber, ethers, Wallet } from 'ethers'
 import { defaultAbiCoder } from 'ethers/lib/utils'
-import { L1DaiGateway, L2DaiGateway } from '../../../typechain'
-import { waitForTx } from '../utils'
+
+import { L1DaiGateway } from '../typechain'
 import { getArbitrumCoreContracts } from './contracts'
 
 export async function getGasPriceBid(l2: ethers.providers.BaseProvider): Promise<BigNumber> {

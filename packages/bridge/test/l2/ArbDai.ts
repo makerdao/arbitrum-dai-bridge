@@ -1,15 +1,14 @@
+import { assertPublicMutableMethods, getRandomAddresses, simpleDeploy, testAuth } from '@makerdao/hardhat-utils'
 import { expect } from 'chai'
 import { ethers } from 'hardhat'
 
 import { ArbDai__factory } from '../../typechain'
-import { testAuth } from '../helpers/auth'
-import { assertPublicMutableMethods, deploy, getRandomAddresses } from '../helpers/helpers'
 
 describe('ArbDai', () => {
   describe('constructor', () => {
     it('assigns properties correctly', async () => {
       const [_deployer, l1Dai] = await ethers.getSigners()
-      const l2DArbDai = await deploy<ArbDai__factory>('ArbDai', [l1Dai.address])
+      const l2DArbDai = await simpleDeploy<ArbDai__factory>('ArbDai', [l1Dai.address])
 
       expect(await l2DArbDai.l1Address()).to.be.eq(l1Dai.address)
     })
@@ -32,10 +31,10 @@ describe('ArbDai', () => {
     ])
   })
 
-  testAuth(
-    'ArbDai',
-    async () => [(await getRandomAddresses())[0]],
-    [
+  testAuth({
+    name: 'ArbDai',
+    getDeployArgs: async () => [(await getRandomAddresses())[0]],
+    authedMethods: [
       async (c) => {
         const [to] = await getRandomAddresses()
         return c.mint(to, 1)
@@ -45,6 +44,6 @@ describe('ArbDai', () => {
         return c.bridgeMint(to, 1)
       },
     ],
-    false,
-  )
+    strictErrorMsgs: false,
+  })
 })

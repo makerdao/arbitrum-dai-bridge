@@ -1,14 +1,11 @@
-require('hardhat')
-
+import { getOptionalEnv, getRequiredEnv, waitForTx } from '@makerdao/hardhat-utils'
 import { expect } from 'chai'
-import { defaultAbiCoder, parseUnits } from 'ethers/lib/utils'
+import { parseUnits } from 'ethers/lib/utils'
 import { ethers } from 'hardhat'
 import { mapValues } from 'lodash'
-import { L1Escrow } from '../typechain'
-import { waitToRelayTxsToL2 } from './helpers/arbitrum'
-import { depositToStandardBridge, getGasPriceBid, getMaxSubmissionPrice } from './helpers/arbitrum/bridge'
-import { deploy, useDeployment } from './helpers/deploy'
-import { getOptionalEnv, getRequiredEnv, waitForTx } from './helpers/utils'
+
+import { deploy, useDeployment, waitToRelayTxsToL2 } from '../arbitrum-helpers'
+import { depositToStandardBridge } from '../arbitrum-helpers/bridge'
 
 describe('bridge', () => {
   it('deposits funds', async () => {

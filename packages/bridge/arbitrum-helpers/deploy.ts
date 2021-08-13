@@ -1,10 +1,9 @@
-import { ethers } from 'hardhat'
-import { Signer } from 'ethers'
-import { deployUsingFactory } from './utils'
-import { ArbDai, ArbDai__factory, Dai, L1DaiGateway, L1Escrow, L2DaiGateway } from '../../typechain'
-import { getAddressOfNextDeployedContract } from './address'
+import { deployUsingFactory, getAddressOfNextDeployedContract } from '@makerdao/hardhat-utils'
 import { expect } from 'chai'
-import { MAX_UINT256 } from '../../test/helpers/helpers'
+import { Signer } from 'ethers'
+import { ethers } from 'hardhat'
+
+import { ArbDai, Dai, L1DaiGateway, L1Escrow, L2DaiGateway } from '../typechain'
 
 interface Dependencies {
   l1: {

@@ -1,17 +1,17 @@
+import {
+  assertPublicMutableMethods,
+  assertPublicNotMutableMethods,
+  getRandomAddresses,
+  simpleDeploy,
+  testAuth,
+} from '@makerdao/hardhat-utils'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/dist/src/signer-with-address'
 import { expect } from 'chai'
 import { defaultAbiCoder, parseUnits } from 'ethers/lib/utils'
 import { ethers } from 'hardhat'
 
+import { deployArbitrumContractMock } from '../../arbitrum-helpers/mocks'
 import { ArbDai__factory, Dai__factory, L1DaiGateway__factory, L2DaiGateway__factory } from '../../typechain'
-import { testAuth } from '../helpers/auth'
-import {
-  assertPublicMutableMethods,
-  assertPublicNotMutableMethods,
-  deploy,
-  deployArbitrumContractMock,
-  getRandomAddresses,
-} from '../helpers/helpers'
 
 const initialTotalL1Supply = 3000
 const errorMessages = {
@@ -1063,7 +1063,7 @@ describe('L1DaiGateway', () => {
     it('assigns all variables properly', async () => {
       const [l2DaiGateway, l1Router, inbox, l1Dai, l2Dai, l1Escrow] = await getRandomAddresses()
 
-      const l1DaiGateway = await deploy<L1DaiGateway__factory>('L1DaiGateway', [
+      const l1DaiGateway = await simpleDeploy<L1DaiGateway__factory>('L1DaiGateway', [
         l2DaiGateway,
         l1Router,
         inbox,
@@ -1132,15 +1132,15 @@ describe('L1DaiGateway', () => {
     ])
   })
 
-  testAuth(
-    'L1DaiGateway',
-    async () => {
+  testAuth({
+    name: 'L1DaiGateway',
+    getDeployArgs: async () => {
       const [l2Counterpart, l1Router, inbox, l1Dai, l2Dai, l1Escrow] = await getRandomAddresses()
 
       return [l2Counterpart, l1Router, inbox, l1Dai, l2Dai, l1Escrow]
     },
-    [(c) => c.close()],
-  )
+    authedMethods: [(c) => c.close()],
+  })
 })
 
 async function setupTest(signers: {
@@ -1150,15 +1150,15 @@ async function setupTest(signers: {
   l1Escrow: SignerWithAddress
   user1: SignerWithAddress
 }) {
-  const l1Dai = await deploy<Dai__factory>('Dai', [])
+  const l1Dai = await simpleDeploy<Dai__factory>('Dai', [])
   await l1Dai.mint(signers.user1.address, initialTotalL1Supply)
 
-  const l2Dai = await deploy<ArbDai__factory>('ArbDai', [l1Dai.address])
+  const l2Dai = await simpleDeploy<ArbDai__factory>('ArbDai', [l1Dai.address])
   const inboxMock = await deployArbitrumContractMock('Inbox', {
     address: signers.inboxImpersonator.address,
   })
 
-  const l1DaiGateway = await deploy<L1DaiGateway__factory>('L1DaiGateway', [
+  const l1DaiGateway = await simpleDeploy<L1DaiGateway__factory>('L1DaiGateway', [
     signers.l2DaiGateway.address,
     signers.router.address,
     signers.inboxImpersonator.address,
