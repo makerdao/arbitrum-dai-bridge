@@ -60,14 +60,14 @@ contract L2DaiGateway is L2ArbitrumGateway {
 
   constructor(
     address _l1Counterpart,
-    address _router,
+    address _l2Router,
     address _l1Dai,
     address _l2Dai
   ) public {
     wards[msg.sender] = 1;
     emit Rely(msg.sender);
 
-    L2ArbitrumGateway._initialize(_l1Counterpart, _router);
+    L2ArbitrumGateway._initialize(_l1Counterpart, _l2Router);
     l1Dai = _l1Dai;
     l2Dai = _l2Dai;
   }

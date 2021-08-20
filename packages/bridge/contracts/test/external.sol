@@ -4,6 +4,7 @@ import "arb-bridge-peripherals/contracts/buddybridge/test/Mock.sol";
 import "arb-bridge-peripherals/contracts/buddybridge/test/TestBuddy.sol";
 import "arb-bridge-peripherals/contracts/tokenbridge/ethereum/gateway/L1ERC20Gateway.sol";
 import "arb-bridge-peripherals/contracts/tokenbridge/ethereum/gateway/L1GatewayRouter.sol";
+import "arb-bridge-peripherals/contracts/tokenbridge/arbitrum/gateway/L2GatewayRouter.sol";
 import "arb-bridge-peripherals/contracts/tokenbridge/test/InboxMock.sol";
 import "arb-bridge-peripherals/contracts/tokenbridge/test/TestCustomTokenL1.sol";
 import "arb-bridge-peripherals/contracts/tokenbridge/libraries/aeWETH.sol";

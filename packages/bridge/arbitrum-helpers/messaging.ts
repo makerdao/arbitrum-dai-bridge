@@ -26,6 +26,7 @@ export async function waitToRelayTxsToL2(
 
   const redemptionReceipt = await l2.getTransactionReceipt(redeemTransaction)
   expect(redemptionReceipt.status).equals(1)
+  console.log('Xchain message arrived')
 }
 
 async function getInboxSeqNumFromContractTransaction(
@@ -33,11 +34,7 @@ async function getInboxSeqNumFromContractTransaction(
   inboxAddress: string,
   provider: ethers.providers.BaseProvider,
 ) {
-  const contract = new ethers.Contract(
-    inboxAddress,
-    require('../../../test/helpers/test-artifacts/Inbox.json').abi,
-    provider,
-  )
+  const contract = new ethers.Contract(inboxAddress, require('./abis/Inbox.json').abi, provider)
   const iface = contract.interface
   const messageDelivered = iface.getEvent('InboxMessageDelivered')
   const messageDeliveredFromOrigin = iface.getEvent('InboxMessageDeliveredFromOrigin')

@@ -2,15 +2,20 @@ import { waitForTx } from '@makerdao/hardhat-utils'
 import { BigNumber, ethers, Wallet } from 'ethers'
 import { defaultAbiCoder } from 'ethers/lib/utils'
 
-import { L1DaiGateway } from '../typechain'
+import { L1DaiGateway, L1GatewayRouter, L2GatewayRouter } from '../typechain'
 import { getArbitrumCoreContracts } from './contracts'
 
 export async function getGasPriceBid(l2: ethers.providers.BaseProvider): Promise<BigNumber> {
   return await l2.getGasPrice()
 }
 
-export async function getMaxSubmissionPrice(l2: ethers.providers.BaseProvider, calldata: string) {
-  const [submissionPrice] = await getArbitrumCoreContracts(l2).arbRetryableTx.getSubmissionPrice(calldata.length)
+export async function getMaxSubmissionPrice(
+  l2: ethers.providers.BaseProvider,
+  calldataOrCalldataLength: string | number,
+) {
+  const calldataLength =
+    typeof calldataOrCalldataLength === 'string' ? calldataOrCalldataLength.length : calldataOrCalldataLength
+  const [submissionPrice] = await getArbitrumCoreContracts(l2).arbRetryableTx.getSubmissionPrice(calldataLength)
   const maxSubmissionPrice = submissionPrice.mul(4)
   return maxSubmissionPrice
 }
@@ -77,4 +82,24 @@ export async function depositToStandardBridge({
       value: ethValue,
     }),
   )
+}
+
+export async function setGatewayForToken({
+  l2Provider,
+  l1Router,
+  tokenGateway,
+}: {
+  l2Provider: ethers.providers.BaseProvider
+  l1Router: L1GatewayRouter
+  l2Router: L2GatewayRouter
+  tokenGateway: L1DaiGateway
+}) {
+  const token = await tokenGateway.l1Dai()
+
+  const calldataLength = 300 + 20 * 2 // fixedOverheadLength + 2 * address
+  const gasPriceBid = await getGasPriceBid(l2Provider)
+  const maxSubmissionPrice = await getMaxSubmissionPrice(l2Provider, calldataLength)
+  await l1Router.setGateways([token], [tokenGateway.address], 0, gasPriceBid, maxSubmissionPrice, {
+    value: maxSubmissionPrice,
+  })
 }
