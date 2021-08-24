@@ -105,31 +105,6 @@ contract L1DaiGateway is L1ArbitrumExtendedGateway {
       );
   }
 
-  // @todo i think it's safe to remove this as override does the same thing
-  function sendTxToL2(
-    address _inbox,
-    address _to,
-    address _user,
-    uint256 _l2CallValue,
-    uint256 _maxSubmissionCost,
-    uint256 _maxGas,
-    uint256 _gasPriceBid,
-    bytes memory _data
-  ) internal virtual override returns (uint256) {
-    uint256 seqNum = IInbox(_inbox).createRetryableTicket{value: msg.value}(
-      _to,
-      _l2CallValue,
-      _maxSubmissionCost,
-      _user,
-      _user,
-      _maxGas,
-      _gasPriceBid,
-      _data
-    );
-    emit TxToL2(_user, _to, seqNum, _data);
-    return seqNum;
-  }
-
   function outboundEscrowTransfer(
     address _l1Token,
     address _from,

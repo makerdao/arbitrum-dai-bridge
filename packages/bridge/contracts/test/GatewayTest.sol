@@ -228,7 +228,7 @@ contract L1DaiGatewayTester is L1ArbitrumTestMessenger, L1DaiGateway {
     uint256 _maxGas,
     uint256 _gasPriceBid,
     bytes memory _data
-  ) internal virtual override(L1DaiGateway, L1ArbitrumTestMessenger) returns (uint256) {
+  ) internal virtual override(L1ArbitrumMessenger, L1ArbitrumTestMessenger) returns (uint256) {
     return
       L1ArbitrumTestMessenger.sendTxToL2(
         _inbox,
