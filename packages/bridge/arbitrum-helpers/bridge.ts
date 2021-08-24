@@ -84,6 +84,50 @@ export async function depositToStandardBridge({
   )
 }
 
+export async function depositToStandardRouter({
+  from,
+  to,
+  l2Provider,
+  deposit,
+  l1Gateway,
+  l1Router,
+  l1TokenAddress,
+  l2GatewayAddress,
+}: {
+  from: Wallet
+  to: string
+  l2Provider: ethers.providers.BaseProvider
+  deposit: BigNumber | string
+  l1Router: L1GatewayRouter
+  l1Gateway: L1DaiGateway
+  l1TokenAddress: string
+  l2GatewayAddress: string
+}) {
+  const gasPriceBid = await getGasPriceBid(l2Provider)
+
+  const onlyData = '0x'
+  const depositCalldata = await l1Gateway.getOutboundCalldata(l1TokenAddress, from.address, to, deposit, onlyData)
+  const maxSubmissionPrice = await getMaxSubmissionPrice(l2Provider, depositCalldata)
+
+  const maxGas = await getMaxGas(
+    l2Provider,
+    l1Gateway.address,
+    l2GatewayAddress,
+    maxSubmissionPrice,
+    gasPriceBid,
+    depositCalldata,
+  )
+  const defaultData = defaultAbiCoder.encode(['uint256', 'bytes'], [maxSubmissionPrice, onlyData])
+  const ethValue = await maxSubmissionPrice.add(gasPriceBid.mul(maxGas))
+
+  console.log('here')
+  return await waitForTx(
+    l1Router.connect(from).outboundTransfer(l1TokenAddress, to, deposit, maxGas, gasPriceBid, defaultData, {
+      value: ethValue,
+    }),
+  )
+}
+
 export async function setGatewayForToken({
   l2Provider,
   l1Router,

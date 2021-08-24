@@ -14,7 +14,7 @@ import {
   useStaticRouterDeployment,
   waitToRelayTxsToL2,
 } from '../arbitrum-helpers'
-import { depositToStandardBridge, setGatewayForToken } from '../arbitrum-helpers/bridge'
+import { depositToStandardBridge, depositToStandardRouter, setGatewayForToken } from '../arbitrum-helpers/bridge'
 
 describe('bridge', () => {
   it('deposits funds', async () => {
@@ -38,6 +38,56 @@ describe('bridge', () => {
         from: network.l1.deployer,
         to: network.l1.deployer.address,
         l1Gateway: bridgeDeployment.l1DaiGateway,
+        l1TokenAddress: bridgeDeployment.l1Dai.address,
+        l2GatewayAddress: bridgeDeployment.l2DaiGateway.address,
+        deposit: amount,
+      }),
+      network.l1.inbox,
+      network.l1.provider,
+      network.l2.provider,
+    )
+
+    expect(await bridgeDeployment.l1Dai.balanceOf(network.l1.deployer.address)).to.be.eq(initialL1Balance.sub(amount))
+    expect(await bridgeDeployment.l1Dai.balanceOf(bridgeDeployment.l1Escrow.address)).to.be.eq(
+      initialEscrowBalance.add(amount),
+    )
+    expect(await bridgeDeployment.l2Dai.balanceOf(network.l1.deployer.address)).to.be.eq(initialL2Balance.add(amount))
+
+    await waitForTx(
+      bridgeDeployment.l2DaiGateway
+        .connect(network.l2.deployer)
+        ['outboundTransfer(address,address,uint256,bytes)'](
+          bridgeDeployment.l1Dai.address,
+          network.l1.deployer.address,
+          amount,
+          '0x',
+        ),
+    )
+
+    expect(await bridgeDeployment.l2Dai.balanceOf(network.l1.deployer.address)).to.be.eq(initialL2Balance) // burn is immediate
+  })
+
+  it('deposits funds using gateway', async () => {
+    const { bridgeDeployment, routerDeployment, network } = await setupTest()
+    await bridgeDeployment.l1Escrow.approve(
+      bridgeDeployment.l1Dai.address,
+      bridgeDeployment.l1DaiGateway.address,
+      ethers.constants.MaxUint256,
+    )
+    const initialL1Balance = await bridgeDeployment.l1Dai.balanceOf(network.l1.deployer.address)
+    const initialEscrowBalance = await bridgeDeployment.l1Dai.balanceOf(bridgeDeployment.l1Escrow.address)
+    const initialL2Balance = await bridgeDeployment.l2Dai.balanceOf(network.l1.deployer.address)
+
+    const amount = parseUnits('7', 'ether')
+
+    await waitForTx(bridgeDeployment.l1Dai.approve(bridgeDeployment.l1DaiGateway.address, amount))
+    await waitToRelayTxsToL2(
+      depositToStandardRouter({
+        l2Provider: network.l2.provider,
+        from: network.l1.deployer,
+        to: network.l1.deployer.address,
+        l1Gateway: bridgeDeployment.l1DaiGateway,
+        l1Router: routerDeployment.l1GatewayRouter,
         l1TokenAddress: bridgeDeployment.l1Dai.address,
         l2GatewayAddress: bridgeDeployment.l2DaiGateway.address,
         deposit: amount,

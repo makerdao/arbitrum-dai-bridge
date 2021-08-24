@@ -1,4 +1,4 @@
-import { deployUsingFactory, getAddressOfNextDeployedContract } from '@makerdao/hardhat-utils'
+import { deployUsingFactoryAndVerify, getAddressOfNextDeployedContract } from '@makerdao/hardhat-utils'
 import { expect } from 'chai'
 import { providers, Signer, Wallet } from 'ethers'
 import { ethers } from 'hardhat'
@@ -39,7 +39,7 @@ export type BridgeDeployment = Awaited<ReturnType<typeof deploy>>
 export async function deployRouter(deps: RouterDependencies): Promise<RouterDeployment> {
   const zeroAddr = ethers.constants.AddressZero
 
-  const l1GatewayRouter = await deployUsingFactory(
+  const l1GatewayRouter = await deployUsingFactoryAndVerify(
     deps.l1.deployer,
     await ethers.getContractFactory('L1GatewayRouter'),
     [],
@@ -55,7 +55,7 @@ export async function deployRouter(deps: RouterDependencies): Promise<RouterDepl
     deps.l1.inbox,
   )
 
-  const l2GatewayRouter = await deployUsingFactory(
+  const l2GatewayRouter = await deployUsingFactoryAndVerify(
     deps.l2.deployer,
     await ethers.getContractFactory('L2GatewayRouter'),
     [],
@@ -71,29 +71,34 @@ export async function deployRouter(deps: RouterDependencies): Promise<RouterDepl
 }
 
 export async function deploy(deps: Dependencies, routerDeployment: RouterDeployment) {
-  const l1Escrow = await deployUsingFactory(deps.l1.deployer, await ethers.getContractFactory('L1Escrow'), [])
+  const l1Escrow = await deployUsingFactoryAndVerify(deps.l1.deployer, await ethers.getContractFactory('L1Escrow'), [])
   console.log('Deployed l1Escrow at: ', l1Escrow.address)
 
-  const l2Dai = await deployUsingFactory(deps.l2.deployer, await ethers.getContractFactory('ArbDai'), [deps.l1.dai])
+  const l2Dai = await deployUsingFactoryAndVerify(deps.l2.deployer, await ethers.getContractFactory('ArbDai'), [
+    deps.l1.dai,
+  ])
   console.log('Deployed l2Dai at: ', l2Dai.address)
   const l1DaiGatewayFutureAddr = await getAddressOfNextDeployedContract(deps.l1.deployer)
-  const l2DaiGateway = await deployUsingFactory(deps.l2.deployer, await ethers.getContractFactory('L2DaiGateway'), [
-    l1DaiGatewayFutureAddr,
-    routerDeployment.l2GatewayRouter.address,
-    deps.l1.dai,
-    l2Dai.address,
-  ])
+  const l2DaiGateway = await deployUsingFactoryAndVerify(
+    deps.l2.deployer,
+    await ethers.getContractFactory('L2DaiGateway'),
+    [l1DaiGatewayFutureAddr, routerDeployment.l2GatewayRouter.address, deps.l1.dai, l2Dai.address],
+  )
   console.log('Deployed l2DaiGateway at: ', l2DaiGateway.address)
   await l2Dai.rely(l2DaiGateway.address) // allow minting/burning from the bridge
 
-  const l1DaiGateway = await deployUsingFactory(deps.l1.deployer, await ethers.getContractFactory('L1DaiGateway'), [
-    l2DaiGateway.address,
-    routerDeployment.l1GatewayRouter.address,
-    deps.l1.inbox,
-    deps.l1.dai,
-    l2Dai.address,
-    l1Escrow.address,
-  ])
+  const l1DaiGateway = await deployUsingFactoryAndVerify(
+    deps.l1.deployer,
+    await ethers.getContractFactory('L1DaiGateway'),
+    [
+      l2DaiGateway.address,
+      routerDeployment.l1GatewayRouter.address,
+      deps.l1.inbox,
+      deps.l1.dai,
+      l2Dai.address,
+      l1Escrow.address,
+    ],
+  )
   console.log('Deployed l1DaiGateway at: ', l1DaiGateway.address)
   expect(l1DaiGateway.address).to.be.eq(
     l1DaiGatewayFutureAddr,
@@ -160,12 +165,12 @@ export async function useStaticRouterDeployment(
   return {
     l1GatewayRouter: (await ethers.getContractAt(
       'L1GatewayRouter',
-      throwIfUndefined(staticConfig.L1GatewayRouter),
+      throwIfUndefined(staticConfig.l1GatewayRouter),
       network.l1.deployer,
     )) as L1GatewayRouter,
     l2GatewayRouter: (await ethers.getContractAt(
       'L2GatewayRouter',
-      throwIfUndefined(staticConfig.L1GatewayRouter),
+      throwIfUndefined(staticConfig.l2GatewayRouter),
       network.l1.deployer,
     )) as L2GatewayRouter,
   }
