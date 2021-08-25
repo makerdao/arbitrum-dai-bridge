@@ -106,7 +106,7 @@ contract L1DaiGateway {
   ) public payable returns (bytes memory seqNum) {
     // do not allow initiating new xchain messages if bridge is closed
     require(isOpen == 1, "L1DaiGateway/closed");
-    require(_l1Token == l1Dai, "L1DaiGateway/token-mismatch");
+    require(_l1Token == l1Dai, "L1DaiGateway/token-not-dai");
 
     (address _from, uint256 _maxSubmissionCost, bytes memory _extraData) = parseOutboundData(_data);
 
@@ -123,6 +123,7 @@ contract L1DaiGateway {
     );
 
     emit OutboundTransferInitiated(l1Dai, _from, _to, seqNum, _amount, _data);
+
     return abi.encode(seqNum);
   }
 
