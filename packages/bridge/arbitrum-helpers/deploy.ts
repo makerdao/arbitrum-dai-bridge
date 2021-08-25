@@ -1,20 +1,38 @@
-import { deployUsingFactoryAndVerify, getAddressOfNextDeployedContract } from '@makerdao/hardhat-utils'
+import {
+  deployUsingFactoryAndVerify,
+  getActiveWards,
+  getAddressOfNextDeployedContract,
+  waitForTx,
+} from '@makerdao/hardhat-utils'
 import { expect } from 'chai'
 import { providers, Signer, Wallet } from 'ethers'
 import { ethers } from 'hardhat'
 import { assert, Awaited } from 'ts-essentials'
 
-import { ArbDai, Dai, L1DaiGateway, L1Escrow, L1GatewayRouter, L2DaiGateway, L2GatewayRouter } from '../typechain'
+import {
+  ArbDai,
+  Dai,
+  L1DaiGateway,
+  L1Escrow,
+  L1GatewayRouter,
+  L1GovernanceRelay,
+  L2DaiGateway,
+  L2GatewayRouter,
+  L2GovernanceRelay,
+} from '../typechain'
 
-interface Dependencies {
+export interface NetworkConfig {
   l1: {
-    deployer: Signer
+    provider: providers.BaseProvider
+    deployer: Wallet
     dai: string
     inbox: string
+    makerPauseProxy: string
+    makerESM: string
   }
-
   l2: {
-    deployer: Signer
+    provider: providers.BaseProvider
+    deployer: Wallet
   }
 }
 
@@ -34,7 +52,7 @@ export interface RouterDeployment {
   l2GatewayRouter: L2GatewayRouter
 }
 
-export type BridgeDeployment = Awaited<ReturnType<typeof deploy>>
+export type BridgeDeployment = Awaited<ReturnType<typeof deployBridge>>
 
 export async function deployRouter(deps: RouterDependencies): Promise<RouterDeployment> {
   const zeroAddr = ethers.constants.AddressZero
@@ -70,7 +88,10 @@ export async function deployRouter(deps: RouterDependencies): Promise<RouterDepl
   }
 }
 
-export async function deploy(deps: Dependencies, routerDeployment: RouterDeployment) {
+export async function deployBridge(deps: NetworkConfig, routerDeployment: RouterDeployment) {
+  const l1BlockOfBeginningOfDeployment = await deps.l1.provider.getBlockNumber()
+  const l2BlockOfBeginningOfDeployment = await deps.l2.provider.getBlockNumber()
+  // deploy contracts
   const l1Escrow = await deployUsingFactoryAndVerify(deps.l1.deployer, await ethers.getContractFactory('L1Escrow'), [])
   console.log('Deployed l1Escrow at: ', l1Escrow.address)
 
@@ -85,7 +106,6 @@ export async function deploy(deps: Dependencies, routerDeployment: RouterDeploym
     [l1DaiGatewayFutureAddr, routerDeployment.l2GatewayRouter.address, deps.l1.dai, l2Dai.address],
   )
   console.log('Deployed l2DaiGateway at: ', l2DaiGateway.address)
-  await l2Dai.rely(l2DaiGateway.address) // allow minting/burning from the bridge
 
   const l1DaiGateway = await deployUsingFactoryAndVerify(
     deps.l1.deployer,
@@ -105,7 +125,60 @@ export async function deploy(deps: Dependencies, routerDeployment: RouterDeploym
     "Expected future address of l1DaiGateway doesn't match actual address!",
   )
 
-  await l1Escrow.approve(deps.l1.dai, l1DaiGateway.address, ethers.constants.MaxUint256)
+  const l2GovRelayFutureAddr = await getAddressOfNextDeployedContract(deps.l2.deployer)
+  const l1GovRelay = await deployUsingFactoryAndVerify(
+    deps.l1.deployer,
+    await ethers.getContractFactory('L1GovernanceRelay'),
+    [deps.l1.inbox, l2GovRelayFutureAddr],
+  )
+  console.log('Deployed l1GovernanceRelay at: ', l1GovRelay.address)
+  const l2GovRelay = await deployUsingFactoryAndVerify(
+    deps.l2.deployer,
+    await ethers.getContractFactory('L2GovernanceRelay'),
+    [l1GovRelay.address],
+  )
+  expect(l2GovRelay.address).to.be.eq(l2GovRelayFutureAddr)
+
+  // permissions
+  console.log('Setting permissions...')
+  await waitForTx(l2Dai.rely(l2DaiGateway.address)) // allow minting/burning from the bridge
+  await waitForTx(l2Dai.rely(l2GovRelay.address)) // allow granting new minting rights by the governance
+  await waitForTx(l2Dai.deny(await deps.l2.deployer.getAddress()))
+
+  await waitForTx(l2DaiGateway.rely(l2GovRelay.address)) // allow closing bridge by the governance
+  await waitForTx(l2DaiGateway.deny(await deps.l2.deployer.getAddress()))
+
+  await waitForTx(l1Escrow.approve(deps.l1.dai, l1DaiGateway.address, ethers.constants.MaxUint256)) // allow l1DaiGateway accessing funds from the bridge for withdrawals
+  await waitForTx(l1Escrow.rely(deps.l1.makerPauseProxy))
+  await waitForTx(l1Escrow.rely(deps.l1.makerESM))
+  await waitForTx(l1Escrow.deny(await deps.l1.deployer.getAddress()))
+
+  await waitForTx(l1DaiGateway.rely(deps.l1.makerPauseProxy))
+  await waitForTx(l1DaiGateway.rely(deps.l1.makerESM))
+  await waitForTx(l1DaiGateway.deny(await deps.l1.deployer.getAddress()))
+
+  await waitForTx(l1GovRelay.rely(deps.l1.makerPauseProxy))
+  await waitForTx(l1GovRelay.rely(deps.l1.makerESM))
+  await waitForTx(l1GovRelay.deny(await deps.l1.deployer.getAddress()))
+
+  console.log('Permission sanity checks...')
+  expect(await getActiveWards(l1Escrow, l1BlockOfBeginningOfDeployment)).to.deep.eq([
+    deps.l1.makerPauseProxy,
+    deps.l1.makerESM,
+  ])
+  expect(await getActiveWards(l1DaiGateway, l1BlockOfBeginningOfDeployment)).to.deep.eq([
+    deps.l1.makerPauseProxy,
+    deps.l1.makerESM,
+  ])
+  expect(await getActiveWards(l1GovRelay, l1BlockOfBeginningOfDeployment)).to.deep.eq([
+    deps.l1.makerPauseProxy,
+    deps.l1.makerESM,
+  ])
+  expect(await getActiveWards(l2DaiGateway, l2BlockOfBeginningOfDeployment)).to.deep.eq([l2GovRelay.address])
+  expect(await getActiveWards(l2Dai, l2BlockOfBeginningOfDeployment)).to.deep.eq([
+    l2DaiGateway.address,
+    l2GovRelay.address,
+  ])
 
   return {
     l1DaiGateway,
@@ -113,26 +186,15 @@ export async function deploy(deps: Dependencies, routerDeployment: RouterDeploym
     l2Dai,
     l2DaiGateway,
     l1Dai: (await ethers.getContractAt('Dai', deps.l1.dai, deps.l1.deployer)) as Dai,
-  }
-}
-
-export interface NetworkConfig {
-  l1: {
-    provider: providers.BaseProvider
-    deployer: Wallet
-    dai: string
-    inbox: string
-  }
-  l2: {
-    provider: providers.BaseProvider
-    deployer: Wallet
+    l1GovRelay,
+    l2GovRelay,
   }
 }
 
 export async function useStaticDeployment(
   network: NetworkConfig,
   staticConfigString: string,
-): ReturnType<typeof deploy> {
+): ReturnType<typeof deployBridge> {
   const staticConfig = JSON.parse(staticConfigString)
 
   return {
@@ -153,6 +215,16 @@ export async function useStaticDeployment(
       network.l2.deployer,
     )) as L2DaiGateway,
     l1Dai: (await ethers.getContractAt('Dai', throwIfUndefined(staticConfig.l1Dai), network.l1.deployer)) as Dai,
+    l1GovRelay: (await ethers.getContractAt(
+      'L1GovernanceRelay',
+      throwIfUndefined(staticConfig.l1GovRelay),
+      network.l1.deployer,
+    )) as L1GovernanceRelay,
+    l2GovRelay: (await ethers.getContractAt(
+      'L2GovernanceRelay',
+      throwIfUndefined(staticConfig.l2GovRelay),
+      network.l2.deployer,
+    )) as L2GovernanceRelay,
   }
 }
 

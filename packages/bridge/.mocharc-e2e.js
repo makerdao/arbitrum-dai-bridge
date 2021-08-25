@@ -20,5 +20,5 @@ module.exports = {
   extension: ['ts'],
   watchExtensions: ['ts'],
   spec: ['test-e2e/**/*.test.ts'],
-  timeout: 80000,
+  timeout: 3000000,
 }

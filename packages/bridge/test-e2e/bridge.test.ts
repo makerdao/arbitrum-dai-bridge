@@ -6,7 +6,7 @@ import { mapValues } from 'lodash'
 
 import {
   BridgeDeployment,
-  deploy,
+  deployBridge,
   deployRouter,
   NetworkConfig,
   RouterDeployment,
@@ -131,7 +131,7 @@ export async function setupTest() {
     bridgeDeployment = await useStaticDeployment(network, staticDeployment)
   } else {
     routerDeployment = await deployRouter(network)
-    bridgeDeployment = await deploy(network, routerDeployment)
+    bridgeDeployment = await deployBridge(network, routerDeployment)
 
     await setGatewayForToken({
       l1Router: routerDeployment.l1GatewayRouter,
@@ -180,6 +180,8 @@ export function getRinkebyNetworkConfig(): NetworkConfig {
       dai: '0xd9e66A2f546880EA4d800F189d6F12Cc15Bff281',
       deployer: l1Deployer,
       inbox: '0x578BAde599406A8fE3d24Fd7f7211c0911F5B29e',
+      makerPauseProxy: '0xeA5F0Db1e768EE40eBEF1f3832F8C7B368690f66',
+      makerESM: '0xa44E96287C34b9a37d3A0c9541908f4Ef3Cd4Aa4',
     },
     l2: {
       provider: l2,

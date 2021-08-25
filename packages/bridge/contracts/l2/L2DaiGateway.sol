@@ -103,6 +103,7 @@ contract L2DaiGateway is L2ArbitrumGateway {
     return l2Dai;
   }
 
+  // @todo: remove
   function inboundEscrowTransfer(
     address _l2TokenAddress,
     address _dest,
