@@ -312,7 +312,7 @@ describe('L1DaiGateway', () => {
       await expect(finalizeWithdrawalTx)
         .to.emit(l1DaiGateway, 'InboundTransferFinalized')
         .withArgs(l1Dai.address, user1.address, user1.address, expectedTransferId, withdrawAmount, defaultWithdrawData)
-      await expect(finalizeWithdrawalTx).not.to.emit(l1DaiGateway, 'TransferAndCallTriggered')
+      //   await expect(finalizeWithdrawalTx).not.to.emit(l1DaiGateway, 'TransferAndCallTriggered')
     })
 
     it('sends funds from the escrow to the 3rd party', async () => {
@@ -355,8 +355,10 @@ describe('L1DaiGateway', () => {
           withdrawAmount,
           defaultWithdrawData,
         )
-      await expect(finalizeWithdrawalTx).not.to.emit(l1DaiGateway, 'TransferAndCallTriggered')
+      //   await expect(finalizeWithdrawalTx).not.to.emit(l1DaiGateway, 'TransferAndCallTriggered')
     })
+
+    // todo: test revert when calldata !=  0
 
     describe.skip('[SKIP BUG] calls receiver contract', () => {
       const callHookData = ethers.utils.defaultAbiCoder.encode(['uint256'], [42])
@@ -554,7 +556,7 @@ describe('L1DaiGateway', () => {
     })
   })
 
-  describe('transferExitAndCall', () => {
+  describe.skip('transferExitAndCall', () => {
     const withdrawAmount = 100
     const expectedTransferId = 1
     const defaultWithdrawData = ethers.utils.defaultAbiCoder.encode(['uint256', 'bytes'], [expectedTransferId, '0x'])
@@ -1096,8 +1098,8 @@ describe('L1DaiGateway', () => {
         l1Escrow,
       ])
 
-      expect(await l1DaiGateway.counterpartGateway()).to.be.eq(l2DaiGateway)
-      expect(await l1DaiGateway.router()).to.be.eq(l1Router)
+      expect(await l1DaiGateway.l2Counterpart()).to.be.eq(l2DaiGateway)
+      expect(await l1DaiGateway.l1Router()).to.be.eq(l1Router)
       expect(await l1DaiGateway.inbox()).to.be.eq(inbox)
       expect(await l1DaiGateway.l1Dai()).to.be.eq(l1Dai)
       expect(await l1DaiGateway.l2Dai()).to.be.eq(l2Dai)
@@ -1106,7 +1108,7 @@ describe('L1DaiGateway', () => {
     })
   })
 
-  describe('inboundEscrowAndCall', () => {
+  describe.skip('inboundEscrowAndCall', () => {
     it("can't be called by anyone", async () => {
       const [_deployer, inboxImpersonator, l1EscrowEOA, l2DaiGatewayEOA, routerEOA, user1, user2] =
         await ethers.getSigners()
@@ -1128,29 +1130,22 @@ describe('L1DaiGateway', () => {
     await assertPublicMutableMethods('L1DaiGateway', [
       'finalizeInboundTransfer(address,address,address,uint256,bytes)', // withdraw
       'outboundTransfer(address,address,uint256,uint256,uint256,bytes)', // deposit
-      'transferExitAndCall(uint256,address,address,bytes,bytes)', // transfers the right to withdrawal and call a contract(allows for fast exits)
-      'inboundEscrowAndCall(address,uint256,address,address,bytes)', // not really public -- can be called only by itself
       'close()',
       'deny(address)',
       'rely(address)',
     ])
 
     await assertPublicNotMutableMethods('L1DaiGateway', [
-      'calculateL2TokenAddress(address)',
-      'encodeWithdrawal(uint256,address)',
-      'gasReserveIfCallRevert()',
-      'getExternalCall(uint256,address,bytes)',
       'getOutboundCalldata(address,address,address,uint256,bytes)',
 
       // storage variables:
-      'counterpartGateway()',
       'inbox()',
       'isOpen()',
       'l1Dai()',
       'l1Escrow()',
+      'l1Router()',
+      'l2Counterpart()',
       'l2Dai()',
-      'redirectedExits(bytes32)',
-      'router()',
       'wards(address)',
     ])
   })

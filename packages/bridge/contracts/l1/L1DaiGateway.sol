@@ -19,6 +19,7 @@
 pragma solidity ^0.6.11;
 
 import "arb-bridge-eth/contracts/bridge/interfaces/IInbox.sol";
+import "arb-bridge-eth/contracts/bridge/interfaces/IOutbox.sol";
 import "arb-bridge-peripherals/contracts/tokenbridge/libraries/gateway/ITokenGateway.sol";
 
 interface TokenLike {
@@ -69,6 +70,14 @@ contract L1DaiGateway {
     uint256 _exitNum,
     uint256 _amount,
     bytes _userData
+  );
+  event InboundTransferFinalized(
+    address token,
+    address indexed _from,
+    address indexed _to,
+    uint256 indexed _transferId,
+    uint256 _amount,
+    bytes _data
   );
   event TxToL2(address indexed _from, address indexed _to, uint256 indexed _seqNum, bytes _data);
 
@@ -128,6 +137,44 @@ contract L1DaiGateway {
     emit OutboundTransferInitiatedV1(l1Dai, _from, _to, seqNum, currExitNum, _amount, extraData);
 
     return abi.encode(seqNum);
+  }
+
+  modifier onlyCounterpartGateway() {
+    address _inbox = inbox;
+
+    // a message coming from the counterpart gateway was executed by the bridge
+    address bridge = address(IInbox(_inbox).bridge());
+    require(msg.sender == bridge, "NOT_FROM_BRIDGE");
+
+    // and the outbox reports that the L2 address of the sender is the counterpart gateway
+    address l2ToL1Sender = getL2ToL1Sender(_inbox);
+    require(l2ToL1Sender == l2Counterpart, "ONLY_COUNTERPART_GATEWAY");
+    _;
+  }
+
+  function getL2ToL1Sender(address _inbox) internal view virtual returns (address) {
+    IOutbox outbox = IOutbox(IInbox(_inbox).bridge().activeOutbox());
+    address l2ToL1Sender = outbox.l2ToL1Sender();
+
+    require(l2ToL1Sender != address(0), "NO_SENDER");
+    return l2ToL1Sender;
+  }
+
+  function finalizeInboundTransfer(
+    address _token,
+    address _from,
+    address _to,
+    uint256 _amount,
+    bytes calldata _data
+  ) external payable onlyCounterpartGateway returns (bytes memory) {
+    require(_token == l1Dai, "L1DaiGateway/token-not-dai");
+    (uint256 exitNum, bytes memory callHookData) = abi.decode(_data, (uint256, bytes));
+
+    require(callHookData.length == 0, "no calldata allowed");
+    TokenLike(_token).transferFrom(l1Escrow, _to, _amount);
+
+    emit InboundTransferFinalized(_token, _from, _to, exitNum, _amount, _data);
+    return bytes("");
   }
 
   function parseOutboundData(bytes memory _data)
