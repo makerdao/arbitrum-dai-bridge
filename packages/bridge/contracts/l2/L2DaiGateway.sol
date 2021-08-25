@@ -176,4 +176,40 @@ contract L2DaiGateway {
     emit TxToL1(_from, _to, _id, _data);
     return _id;
   }
+
+  function finalizeInboundTransfer(
+    address _token,
+    address _from,
+    address _to,
+    uint256 _amount,
+    bytes calldata _data
+  ) external payable onlyCounterpartGateway returns (bytes memory) {
+    require(_token == l1Dai, "L2DaiGateway/token-not-dai");
+    (bytes memory gatewayData, bytes memory callHookData) = abi.decode(_data, (bytes, bytes));
+
+    require(callHookData.length == 0, "no calldata please");
+
+    Mintable(l2Dai).mint(_to, _amount);
+
+    // @todo: werid transferId
+    emit InboundTransferFinalized(_token, _from, _to, uint256(uint160(l2Dai)), _amount, _data);
+
+    return bytes("");
+  }
+
+  event InboundTransferFinalized(
+    address token,
+    address indexed _from,
+    address indexed _to,
+    uint256 indexed _transferId,
+    uint256 _amount,
+    bytes _data
+  );
+
+  modifier onlyCounterpartGateway() virtual {
+    // this method is overriden in gateways that require special logic for validation
+    // ie L2 to L1 messages need to be validated against the outbox
+    require(msg.sender == l1Counterpart, "ONLY_COUNTERPART_GATEWAY");
+    _;
+  }
 }
