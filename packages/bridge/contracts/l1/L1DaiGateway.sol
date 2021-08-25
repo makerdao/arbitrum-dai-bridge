@@ -43,7 +43,7 @@ contract L1DaiGateway is L1ArbitrumExtendedGateway {
     emit Deny(usr);
   }
 
-  modifier auth {
+  modifier auth() {
     require(wards[msg.sender] == 1, "L1DaiGateway/not-authorized");
     _;
   }

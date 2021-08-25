@@ -36,7 +36,7 @@ contract L1GovernanceRelay {
     emit Deny(usr);
   }
 
-  modifier auth {
+  modifier auth() {
     require(wards[msg.sender] == 1, "L1GovernanceRelay/not-authorized");
     _;
   }

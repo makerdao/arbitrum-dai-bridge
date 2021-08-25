@@ -44,7 +44,7 @@ contract L2DaiGateway is L2ArbitrumGateway {
     emit Deny(usr);
   }
 
-  modifier auth {
+  modifier auth() {
     require(wards[msg.sender] == 1, "L2DaiGateway/not-authorized");
     _;
   }
