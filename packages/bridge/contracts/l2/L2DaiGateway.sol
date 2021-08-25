@@ -19,6 +19,7 @@
 pragma solidity ^0.6.11;
 
 import "arb-bridge-peripherals/contracts/tokenbridge/arbitrum/gateway/L2ArbitrumGateway.sol";
+import "arb-bridge-peripherals/contracts/tokenbridge/libraries/gateway/ITokenGateway.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
@@ -28,9 +29,7 @@ interface Mintable {
   function burn(address usr, uint256 wad) external;
 }
 
-contract L2DaiGateway is L2ArbitrumGateway {
-  using SafeERC20 for IERC20;
-
+contract L2DaiGateway {
   // --- Auth ---
   mapping(address => uint256) public wards;
 
@@ -54,9 +53,23 @@ contract L2DaiGateway is L2ArbitrumGateway {
 
   address public immutable l1Dai;
   address public immutable l2Dai;
+  address public immutable l1Counterpart;
+  address public immutable l2Router;
   uint256 public isOpen = 1;
 
+  uint256 public exitNum;
+
   event Closed();
+
+  event OutboundTransferInitiatedV1(
+    address token,
+    address indexed _from,
+    address indexed _to,
+    uint256 indexed _transferId,
+    uint256 _exitNum,
+    uint256 _amount,
+    bytes _userData
+  );
 
   constructor(
     address _l1Counterpart,
@@ -67,9 +80,10 @@ contract L2DaiGateway is L2ArbitrumGateway {
     wards[msg.sender] = 1;
     emit Rely(msg.sender);
 
-    L2ArbitrumGateway._initialize(_l1Counterpart, _l2Router);
     l1Dai = _l1Dai;
     l2Dai = _l2Dai;
+    l1Counterpart = _l1Counterpart;
+    l2Router = _l2Router;
   }
 
   function close() external auth {
@@ -78,49 +92,88 @@ contract L2DaiGateway is L2ArbitrumGateway {
     emit Closed();
   }
 
-  function handleNoContract(
-    address l1ERC20,
-    address expectedL2Address,
+  function outboundTransfer(
+    address _l1Token,
+    address _to,
+    uint256 _amount,
+    bytes calldata _data
+  ) public payable virtual returns (bytes memory) {
+    return outboundTransfer(_l1Token, _to, _amount, 0, 0, _data);
+  }
+
+  function outboundTransfer(
+    address _l1Token,
+    address _to,
+    uint256 _amount,
+    uint256 _maxGas,
+    uint256 _gasPriceBid,
+    bytes calldata _data
+  ) public returns (bytes memory res) {
+    require(isOpen == 1, "L2DaiGateway/closed");
+    require(_l1Token == l1Dai, "L2DaiGateway/token-not-dai");
+    address _from;
+    bytes memory _extraData;
+    {
+      if (msg.sender == l2Router) {
+        (_from, _extraData) = abi.decode(_data, (address, bytes));
+      } else {
+        _from = msg.sender;
+        _extraData = _data;
+      }
+    }
+
+    // unique id used to identify the L2 to L1 tx
+    uint256 id;
+    // exit number used for tradeable exits
+    uint256 currExitNum = exitNum;
+    {
+      Mintable(l2Dai).burn(_from, _amount);
+
+      // we override the res field to save on the stack
+      res = getOutboundCalldata(_l1Token, _from, _to, _amount, _extraData);
+      exitNum++;
+      id = sendTxToL1(
+        // default to sending no callvalue to the L1
+        0,
+        _from,
+        l1Counterpart,
+        res
+      );
+    }
+
+    emit OutboundTransferInitiatedV1(_l1Token, _from, _to, id, currExitNum, _amount, _extraData);
+    return abi.encode(id);
+  }
+
+  function getOutboundCalldata(
+    address _token,
     address _from,
     address _to,
     uint256 _amount,
-    bytes memory gatewayData
-  ) internal virtual override returns (bool shouldHalt) {
-    // it is assumed that the custom token is deployed in the L2 before deposits are made
-    // trigger withdrawal
-    createOutboundTx(_from, _amount, gatewayData);
-    return true;
+    bytes memory _data
+  ) public view returns (bytes memory outboundCalldata) {
+    outboundCalldata = abi.encodeWithSelector(
+      ITokenGateway.finalizeInboundTransfer.selector,
+      _token,
+      _from,
+      _to,
+      _amount,
+      abi.encode(exitNum, _data)
+    );
+
+    return outboundCalldata;
   }
 
-  function calculateL2TokenAddress(address l1ERC20) public view virtual override returns (address) {
-    require(l1ERC20 == l1Dai, "L2DaiGateway/token-not-dai");
-    return l2Dai;
-  }
+  event TxToL1(address indexed _from, address indexed _to, uint256 indexed _id, bytes _data);
 
-  // @todo: remove
-  function inboundEscrowTransfer(
-    address _l2TokenAddress,
-    address _dest,
-    uint256 _amount
-  ) internal virtual override {
-    Mintable(_l2TokenAddress).mint(_dest, _amount);
-  }
-
-  function createOutboundTx(
+  function sendTxToL1(
+    uint256 _l1CallValue,
     address _from,
-    uint256 _tokenAmount,
-    bytes memory _outboundCalldata
-  ) internal override returns (uint256) {
-    // do not allow initiating new xchain messages if bridge is closed
-    require(isOpen == 1, "L2DaiGateway/closed");
-
-    exitNum++;
-    return sendTxToL1(0, _from, counterpartGateway, _outboundCalldata);
-  }
-
-  function gasReserveIfCallRevert() public pure virtual override returns (uint256) {
-    // amount of arbgas necessary to send user tokens in case
-    // of the "onTokenTransfer" call consumes all available gas
-    return 5000;
+    address _to,
+    bytes memory _data
+  ) internal returns (uint256) {
+    uint256 _id = ArbSys(address(100)).sendTxToL1{value: _l1CallValue}(_to, _data);
+    emit TxToL1(_from, _to, _id, _data);
+    return _id;
   }
 }
