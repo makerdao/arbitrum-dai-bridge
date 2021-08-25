@@ -19,7 +19,7 @@
 pragma solidity ^0.6.11;
 
 import "arb-bridge-eth/contracts/bridge/interfaces/IInbox.sol";
-import "arb-bridge-peripherals/contracts/tokenbridge/libraries/gateway/ITokenGateway.sol";
+import "arb-bridge-peripherals/contracts/tokenbridge/ethereum/gateway/L1ArbitrumExtendedGateway.sol";
 
 interface TokenLike {
   function transferFrom(
@@ -29,7 +29,7 @@ interface TokenLike {
   ) external returns (bool success);
 }
 
-contract L1DaiGateway {
+contract L1DaiGateway is L1ArbitrumExtendedGateway {
   // --- Auth ---
   mapping(address => uint256) public wards;
 
@@ -54,22 +54,9 @@ contract L1DaiGateway {
   address public immutable l1Dai;
   address public immutable l2Dai;
   address public immutable l1Escrow;
-  address public immutable l1Router;
-  address public immutable l2Counterpart;
-  address public immutable inbox;
   uint256 public isOpen = 1;
 
   event Closed();
-
-  event OutboundTransferInitiated(
-    address token,
-    address indexed _from,
-    address indexed _to,
-    uint256 indexed _transferId,
-    uint256 _amount,
-    bytes _data
-  );
-  event TxToL2(address indexed _from, address indexed _to, uint256 indexed _seqNum, bytes _data);
 
   constructor(
     address _l2Counterpart,
@@ -82,12 +69,10 @@ contract L1DaiGateway {
     wards[msg.sender] = 1;
     emit Rely(msg.sender);
 
+    L1ArbitrumExtendedGateway._initialize(_l2Counterpart, _l1Router, _inbox);
     l1Dai = _l1Dai;
     l2Dai = _l2Dai;
     l1Escrow = _l1Escrow;
-    l1Router = _l1Router;
-    l2Counterpart = _l2Counterpart;
-    inbox = _inbox;
   }
 
   function close() external auth {
@@ -96,97 +81,51 @@ contract L1DaiGateway {
     emit Closed();
   }
 
-  function outboundTransfer(
-    address _l1Token,
-    address _to,
-    uint256 _amount,
+  function createOutboundTx(
+    address _from,
+    uint256 _tokenAmount,
     uint256 _maxGas,
     uint256 _gasPriceBid,
-    bytes calldata _data
-  ) public payable returns (bytes memory seqNum) {
+    uint256 _maxSubmissionCost,
+    bytes memory _outboundCalldata
+  ) internal override returns (uint256) {
     // do not allow initiating new xchain messages if bridge is closed
     require(isOpen == 1, "L1DaiGateway/closed");
-    require(_l1Token == l1Dai, "L1DaiGateway/token-not-dai");
 
-    (address _from, uint256 _maxSubmissionCost, bytes memory _extraData) = parseOutboundData(_data);
-
-    TokenLike(_l1Token).transferFrom(_from, l1Escrow, _amount);
-
-    bytes memory outboundCalldata = getOutboundCalldata(_l1Token, _from, _to, _amount, _extraData);
-    uint256 seqNum = sendTxToL2(
-      _from,
-      0,
-      _maxSubmissionCost,
-      _maxGas,
-      _gasPriceBid,
-      outboundCalldata
-    );
-
-    emit OutboundTransferInitiated(l1Dai, _from, _to, seqNum, _amount, _data);
-
-    return abi.encode(seqNum);
+    return
+      sendTxToL2(
+        inbox,
+        counterpartGateway,
+        _from,
+        msg.value, // we forward the L1 call value to the inbox
+        0, // l2 call value 0 by default
+        L2GasParams({
+          _maxSubmissionCost: _maxSubmissionCost,
+          _maxGas: _maxGas,
+          _gasPriceBid: _gasPriceBid
+        }),
+        _outboundCalldata
+      );
   }
 
-  function parseOutboundData(bytes memory _data)
-    internal
-    view
-    returns (
-      address _from,
-      uint256 _maxSubmissionCost,
-      bytes memory _extraData
-    )
-  {
-    if (msg.sender == l1Router) {
-      // router encoded
-      (_from, _extraData) = abi.decode(_data, (address, bytes));
-    } else {
-      _from = msg.sender;
-      _extraData = _data;
-    }
-    // user encoded
-    (_maxSubmissionCost, _extraData) = abi.decode(_extraData, (uint256, bytes));
-  }
-
-  function getOutboundCalldata(
+  function outboundEscrowTransfer(
     address _l1Token,
     address _from,
-    address _to,
-    uint256 _amount,
-    bytes memory _data
-  ) public view returns (bytes memory outboundCalldata) {
-    bytes memory emptyBytes = "";
-
-    outboundCalldata = abi.encodeWithSelector(
-      ITokenGateway.finalizeInboundTransfer.selector,
-      _l1Token,
-      _from,
-      _to,
-      _amount,
-      abi.encode(emptyBytes, _data)
-    );
-
-    return outboundCalldata;
+    uint256 _amount
+  ) internal virtual override {
+    TokenLike(_l1Token).transferFrom(_from, l1Escrow, _amount);
   }
 
-  function sendTxToL2(
-    address _user,
-    uint256 _l2CallValue,
-    uint256 _maxSubmissionCost,
-    uint256 _maxGas,
-    uint256 _gasPriceBid,
-    bytes memory _data
-  ) internal virtual returns (uint256) {
-    uint256 seqNum = IInbox(inbox).createRetryableTicket{value: msg.value}(
-      l2Counterpart,
-      _l2CallValue,
-      _maxSubmissionCost,
-      _user,
-      _user,
-      _maxGas,
-      _gasPriceBid,
-      _data
-    );
-    emit TxToL2(_user, l2Counterpart, seqNum, _data);
-    return seqNum;
+  function inboundEscrowTransfer(
+    address _l1Token,
+    address _dest,
+    uint256 _amount
+  ) internal virtual override {
+    TokenLike(_l1Token).transferFrom(l1Escrow, _dest, _amount);
+  }
+
+  function calculateL2TokenAddress(address l1ERC20) public view override returns (address) {
+    require(l1ERC20 == l1Dai, "L1DaiGateway/token-not-dai");
+    return l2Dai;
   }
 }

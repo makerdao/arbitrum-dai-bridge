@@ -77,8 +77,16 @@ describe('L1DaiGateway', () => {
       expect(depositCallToMessengerCall.data).to.equal(expectedDepositXDomainCallData)
 
       await expect(depositTx)
-        .to.emit(l1DaiGateway, 'OutboundTransferInitiated')
-        .withArgs(l1Dai.address, sender.address, sender.address, expectedDepositId, depositAmount, defaultData)
+        .to.emit(l1DaiGateway, 'OutboundTransferInitiatedV1')
+        .withArgs(
+          l1Dai.address,
+          sender.address,
+          sender.address,
+          expectedDepositId,
+          expectedDepositId,
+          depositAmount,
+          callHookData,
+        )
       await expect(depositTx)
         .to.emit(l1DaiGateway, 'TxToL2')
         .withArgs(sender.address, l2DaiGatewayEOA.address, expectedDepositId, expectedDepositXDomainCallData)
@@ -123,8 +131,16 @@ describe('L1DaiGateway', () => {
       expect(depositCallToMessengerCall.data).to.equal(expectedDepositXDomainCallData)
 
       await expect(depositTx)
-        .to.emit(l1DaiGateway, 'OutboundTransferInitiated')
-        .withArgs(l1Dai.address, sender.address, receiver.address, expectedDepositId, depositAmount, defaultData)
+        .to.emit(l1DaiGateway, 'OutboundTransferInitiatedV1')
+        .withArgs(
+          l1Dai.address,
+          sender.address,
+          receiver.address,
+          expectedDepositId,
+          expectedDepositId,
+          depositAmount,
+          callHookData,
+        )
       await expect(depositTx)
         .to.emit(l1DaiGateway, 'TxToL2')
         .withArgs(sender.address, l2DaiGatewayEOA.address, expectedDepositId, expectedDepositXDomainCallData)
@@ -168,8 +184,16 @@ describe('L1DaiGateway', () => {
       expect(depositCallToMessengerCall.data).to.equal(expectedDepositXDomainCallData)
 
       await expect(depositTx)
-        .to.emit(l1DaiGateway, 'OutboundTransferInitiated')
-        .withArgs(l1Dai.address, sender.address, sender.address, expectedDepositId, depositAmount, routerEncodedData)
+        .to.emit(l1DaiGateway, 'OutboundTransferInitiatedV1')
+        .withArgs(
+          l1Dai.address,
+          sender.address,
+          sender.address,
+          expectedDepositId,
+          expectedDepositId,
+          depositAmount,
+          callHookData,
+        )
       await expect(depositTx)
         .to.emit(l1DaiGateway, 'TxToL2')
         .withArgs(sender.address, l2DaiGatewayEOA.address, expectedDepositId, expectedDepositXDomainCallData)
@@ -280,7 +304,7 @@ describe('L1DaiGateway', () => {
       outboxMock.smocked.l2ToL1Sender.will.return.with(() => l2DaiGatewayEOA.address)
 
       const finalizeWithdrawalTx = await l1DaiGateway
-        .connect(outboxImpersonator)
+        .connect(bridgeImpersonator)
         .finalizeInboundTransfer(l1Dai.address, user1.address, user1.address, withdrawAmount, defaultWithdrawData)
 
       expect(await l1Dai.balanceOf(user1.address)).to.be.equal(withdrawAmount)
@@ -315,7 +339,7 @@ describe('L1DaiGateway', () => {
       outboxMock.smocked.l2ToL1Sender.will.return.with(() => l2DaiGatewayEOA.address)
 
       const finalizeWithdrawalTx = await l1DaiGateway
-        .connect(outboxImpersonator)
+        .connect(bridgeImpersonator)
         .finalizeInboundTransfer(l1Dai.address, sender.address, receiver.address, withdrawAmount, defaultWithdrawData)
 
       expect(await l1Dai.balanceOf(sender.address)).to.be.equal(0)
@@ -427,7 +451,7 @@ describe('L1DaiGateway', () => {
       await l1DaiGateway.connect(deployer).close()
 
       const finalizeWithdrawalTx = await l1DaiGateway
-        .connect(outboxImpersonator)
+        .connect(bridgeImpersonator)
         .finalizeInboundTransfer(l1Dai.address, user1.address, user1.address, withdrawAmount, defaultWithdrawData)
 
       expect(await l1Dai.balanceOf(user1.address)).to.be.equal(withdrawAmount)
@@ -462,7 +486,7 @@ describe('L1DaiGateway', () => {
 
       // this should revert
       await l1DaiGateway
-        .connect(outboxImpersonator)
+        .connect(bridgeImpersonator)
         .finalizeInboundTransfer(l2Dai.address, user1.address, user1.address, withdrawAmount, defaultWithdrawData)
     })
 
@@ -524,7 +548,7 @@ describe('L1DaiGateway', () => {
 
       await expect(
         l1DaiGateway
-          .connect(outboxImpersonator)
+          .connect(bridgeImpersonator)
           .finalizeInboundTransfer(l1Dai.address, user1.address, user1.address, withdrawAmount, defaultWithdrawData),
       ).to.be.revertedWith(errorMessages.l2CounterpartMismatch)
     })
@@ -587,7 +611,7 @@ describe('L1DaiGateway', () => {
       outboxMock.smocked.l2ToL1Sender.will.return.with(() => l2DaiGatewayEOA.address)
       // it should withdraw funds not to user1 but to exitReceiverMock
       await l1DaiGateway
-        .connect(outboxImpersonator)
+        .connect(bridgeImpersonator)
         .finalizeInboundTransfer(l1Dai.address, user1.address, user1.address, withdrawAmount, defaultWithdrawData)
 
       expect(await l1Dai.balanceOf(user1.address)).to.be.equal(0)
@@ -648,7 +672,7 @@ describe('L1DaiGateway', () => {
       outboxMock.smocked.l2ToL1Sender.will.return.with(() => l2DaiGatewayEOA.address)
       // it should withdraw funds not to user1 but to exitReceiverMock
       await l1DaiGateway
-        .connect(outboxImpersonator)
+        .connect(bridgeImpersonator)
         .finalizeInboundTransfer(l1Dai.address, user1.address, user1.address, withdrawAmount, defaultWithdrawData)
 
       expect(await l1Dai.balanceOf(user1.address)).to.be.equal(0)
@@ -703,7 +727,7 @@ describe('L1DaiGateway', () => {
       outboxMock.smocked.l2ToL1Sender.will.return.with(() => l2DaiGatewayEOA.address)
       // it should withdraw funds not to user1 but to exitReceiverMock and should call onTokenTransfer
       const finalizeWithdrawalTx = await l1DaiGateway
-        .connect(outboxImpersonator)
+        .connect(bridgeImpersonator)
         .finalizeInboundTransfer(l1Dai.address, user1.address, user1.address, withdrawAmount, defaultWithdrawData)
       const onWithdrawalMessengerCall = exitReceiverMock.smocked.onTokenTransfer.calls[0]
 
@@ -843,7 +867,7 @@ describe('L1DaiGateway', () => {
       outboxMock.smocked.l2ToL1Sender.will.return.with(() => l2DaiGatewayEOA.address)
       // it should withdraw funds not to user1 but to exitReceiverMock2
       await l1DaiGateway
-        .connect(outboxImpersonator)
+        .connect(bridgeImpersonator)
         .finalizeInboundTransfer(l1Dai.address, user1.address, user1.address, withdrawAmount, defaultWithdrawData)
 
       expect(await l1Dai.balanceOf(user1.address)).to.be.equal(0)
@@ -1117,7 +1141,6 @@ describe('L1DaiGateway', () => {
       'gasReserveIfCallRevert()',
       'getExternalCall(uint256,address,bytes)',
       'getOutboundCalldata(address,address,address,uint256,bytes)',
-      'parseInboundData(bytes)',
 
       // storage variables:
       'counterpartGateway()',

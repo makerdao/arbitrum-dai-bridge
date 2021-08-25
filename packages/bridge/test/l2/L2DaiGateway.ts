@@ -22,7 +22,6 @@ const errorMessages = {
   notOwnerOfDai: 'Dai/not-authorized',
   l1CounterpartMismatch: 'ONLY_COUNTERPART_GATEWAY',
   inboundEscrowAndCallGuard: 'Mint can only be called by self',
-  postUpgradeInitGuard: 'ALREADY_INIT',
 }
 
 describe('L2DaiGateway', () => {
@@ -261,8 +260,16 @@ describe('L2DaiGateway', () => {
       expect(await l2Dai.balanceOf(sender.address)).to.be.eq(initialTotalL2Supply - withdrawAmount)
       expect(await l2Dai.totalSupply()).to.be.eq(initialTotalL2Supply - withdrawAmount)
       await expect(tx)
-        .to.emit(l2DaiGateway, 'OutboundTransferInitiated')
-        .withArgs(l1Dai.address, sender.address, sender.address, expectedWithdrawalId, withdrawAmount, defaultData)
+        .to.emit(l2DaiGateway, 'OutboundTransferInitiatedV1')
+        .withArgs(
+          l1Dai.address,
+          sender.address,
+          sender.address,
+          expectedWithdrawalId,
+          expectedWithdrawalId,
+          withdrawAmount,
+          defaultData,
+        )
       expect(withdrawCrossChainCall.destAddr).to.eq(l1DaiBridge.address)
       expect(withdrawCrossChainCall.calldataForL1).to.eq(
         new L1DaiGateway__factory().interface.encodeFunctionData('finalizeInboundTransfer', [
@@ -298,8 +305,16 @@ describe('L2DaiGateway', () => {
       expect(await l2Dai.balanceOf(receiver.address)).to.be.eq(0)
       expect(await l2Dai.totalSupply()).to.be.eq(initialTotalL2Supply - withdrawAmount)
       await expect(tx)
-        .to.emit(l2DaiGateway, 'OutboundTransferInitiated')
-        .withArgs(l1Dai.address, sender.address, receiver.address, expectedWithdrawalId, withdrawAmount, defaultData)
+        .to.emit(l2DaiGateway, 'OutboundTransferInitiatedV1')
+        .withArgs(
+          l1Dai.address,
+          sender.address,
+          receiver.address,
+          expectedWithdrawalId,
+          expectedWithdrawalId,
+          withdrawAmount,
+          defaultData,
+        )
       expect(withdrawCrossChainCall.destAddr).to.eq(l1DaiBridge.address)
       expect(withdrawCrossChainCall.calldataForL1).to.eq(
         new L1DaiGateway__factory().interface.encodeFunctionData('finalizeInboundTransfer', [
@@ -427,8 +442,16 @@ describe('L2DaiGateway', () => {
       expect(await l2Dai.balanceOf(sender.address)).to.be.eq(initialTotalL2Supply - withdrawAmount)
       expect(await l2Dai.totalSupply()).to.be.eq(initialTotalL2Supply - withdrawAmount)
       await expect(tx)
-        .to.emit(l2DaiGateway, 'OutboundTransferInitiated')
-        .withArgs(l1Dai.address, sender.address, sender.address, expectedWithdrawalId, withdrawAmount, defaultData)
+        .to.emit(l2DaiGateway, 'OutboundTransferInitiatedV1')
+        .withArgs(
+          l1Dai.address,
+          sender.address,
+          sender.address,
+          expectedWithdrawalId,
+          expectedWithdrawalId,
+          withdrawAmount,
+          defaultData,
+        )
       expect(withdrawCrossChainCall.destAddr).to.eq(l1DaiBridge.address)
       expect(withdrawCrossChainCall.calldataForL1).to.eq(
         new L1DaiGateway__factory().interface.encodeFunctionData('finalizeInboundTransfer', [
@@ -504,22 +527,12 @@ describe('L2DaiGateway', () => {
     })
   })
 
-  describe('postUpgradeInit', () => {
-    it("can't be called from the outside", async () => {
-      const [owner, l1Dai, router] = await ethers.getSigners()
-      const { l2DaiGateway } = await setupTest({ l1Dai, l1DaiBridge: owner, router })
-
-      await expect(l2DaiGateway.postUpgradeInit()).to.be.revertedWith(errorMessages.postUpgradeInitGuard)
-    })
-  })
-
   it('has correct public interface', async () => {
     await assertPublicMutableMethods('L2DaiGateway', [
       'finalizeInboundTransfer(address,address,address,uint256,bytes)', // finalize deposit
       'outboundTransfer(address,address,uint256,bytes)', // withdraw
       'outboundTransfer(address,address,uint256,uint256,uint256,bytes)', // withdrawTo
       'inboundEscrowAndCall(address,uint256,address,address,bytes)', // not really public
-      'postUpgradeInit()', // this is used to fix storage slots after upgrade -- we don't need it
       'close()',
       'rely(address)',
       'deny(address)',

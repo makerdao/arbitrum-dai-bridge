@@ -84,21 +84,15 @@ contract L2DaiGateway is L2ArbitrumGateway {
     address _from,
     address _to,
     uint256 _amount,
-    bytes memory deployData
+    bytes memory gatewayData
   ) internal virtual override returns (bool shouldHalt) {
     // it is assumed that the custom token is deployed in the L2 before deposits are made
     // trigger withdrawal
-    createOutboundTx(l1ERC20, address(this), _from, _amount, "");
+    createOutboundTx(_from, _amount, gatewayData);
     return true;
   }
 
-  function _calculateL2TokenAddress(address l1ERC20)
-    internal
-    view
-    virtual
-    override
-    returns (address)
-  {
+  function calculateL2TokenAddress(address l1ERC20) public view virtual override returns (address) {
     require(l1ERC20 == l1Dai, "L2DaiGateway/token-not-dai");
     return l2Dai;
   }
@@ -113,16 +107,15 @@ contract L2DaiGateway is L2ArbitrumGateway {
   }
 
   function createOutboundTx(
-    address _l1Token,
     address _from,
-    address _to,
-    uint256 _amount,
-    bytes memory _extraData
-  ) internal virtual override returns (uint256) {
+    uint256 _tokenAmount,
+    bytes memory _outboundCalldata
+  ) internal override returns (uint256) {
     // do not allow initiating new xchain messages if bridge is closed
     require(isOpen == 1, "L2DaiGateway/closed");
 
-    return sendTxToL1(_from, 0, getOutboundCalldata(_l1Token, _from, _to, _amount, _extraData));
+    exitNum++;
+    return sendTxToL1(0, _from, counterpartGateway, _outboundCalldata);
   }
 
   function gasReserveIfCallRevert() public pure virtual override returns (uint256) {
