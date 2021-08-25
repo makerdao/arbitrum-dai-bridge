@@ -19,7 +19,7 @@ import { ethers } from 'hardhat'
 import { assert, expect } from 'chai'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/dist/src/signer-with-address'
 import { Contract, ContractFactory } from 'ethers'
-import { getAddressOfNextDeployedContract } from '../test/helpers/address'
+import { getAddressOfNextDeployedContract } from '@makerdao/hardhat-utils'
 
 describe('Bridge peripherals end-to-end Dai gateway', () => {
   let accounts: SignerWithAddress[]
@@ -43,21 +43,16 @@ describe('Bridge peripherals end-to-end Dai gateway', () => {
     l1Dai = await TestDai.deploy()
     l1Dai = await l1Dai.deployed()
 
-    console.log('1')
     const L2Dai: ContractFactory = await ethers.getContractFactory('ArbDai')
-    console.log('l1Dai.address', l1Dai.address)
     l2Dai = await L2Dai.deploy(l1Dai.address)
     await l2Dai.deployed()
-    console.log('2')
 
     // l1 side deploy
     const L1RouterTestBridge: ContractFactory = await ethers.getContractFactory('L1GatewayRouter')
     l1RouterTestBridge = await L1RouterTestBridge.deploy()
 
-    console.log('3')
     const L1TestBridge: ContractFactory = await ethers.getContractFactory('L1DaiGatewayTester')
     const futureAddressOfL2Bridge = await getAddressOfNextDeployedContract(accounts[0], 2)
-    console.log('futureAddressOfL2Bridge', futureAddressOfL2Bridge)
     l1TestBridge = await L1TestBridge.deploy(
       futureAddressOfL2Bridge,
       l1RouterTestBridge.address,
@@ -66,7 +61,6 @@ describe('Bridge peripherals end-to-end Dai gateway', () => {
       l2Dai.address,
       accounts[1].address, // escrow
     )
-    console.log('4')
 
     const L2RouterTestBridge: ContractFactory = await ethers.getContractFactory('L2GatewayRouter')
     l2RouterTestBridge = await L2RouterTestBridge.deploy()
@@ -80,8 +74,6 @@ describe('Bridge peripherals end-to-end Dai gateway', () => {
       l1Dai.address,
       l2Dai.address,
     )
-    console.log('futureAddressOfL2Bridge', l2TestBridge.address)
-    console.log('5')
 
     await l2Dai.rely(l2TestBridge.address)
     await l1Dai.connect(accounts[1]).approve(l1TestBridge.address, 1000000)

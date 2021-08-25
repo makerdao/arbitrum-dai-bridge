@@ -1,9 +1,8 @@
+import { assertPublicMutableMethods, getRandomAddresses, simpleDeploy, testAuth } from '@makerdao/hardhat-utils'
 import { expect } from 'chai'
 import { ethers } from 'hardhat'
 
 import { Dai__factory, L1Escrow__factory } from '../../typechain'
-import { testAuth } from '../helpers/auth'
-import { assertPublicMutableMethods, deploy, getRandomAddresses } from '../helpers/helpers'
 
 const allowanceLimit = 100
 
@@ -47,17 +46,21 @@ describe('L1Escrow', () => {
     await assertPublicMutableMethods('L1Escrow', ['rely(address)', 'deny(address)', 'approve(address,address,uint256)'])
   })
 
-  testAuth('L1Escrow', async () => [], [
-    async (c) => {
-      const [a, b] = await getRandomAddresses()
-      return c.approve(a, b, 1)
-    },
-  ])
+  testAuth({
+    name: 'L1Escrow',
+    getDeployArgs: async () => [],
+    authedMethods: [
+      async (c) => {
+        const [a, b] = await getRandomAddresses()
+        return c.approve(a, b, 1)
+      },
+    ],
+  })
 })
 
 async function setupTest() {
-  const l1Dai = await deploy<Dai__factory>('Dai', [])
-  const l1Escrow = await deploy<L1Escrow__factory>('L1Escrow', [])
+  const l1Dai = await simpleDeploy<Dai__factory>('Dai', [])
+  const l1Escrow = await simpleDeploy<L1Escrow__factory>('L1Escrow', [])
 
   return { l1Dai, l1Escrow }
 }

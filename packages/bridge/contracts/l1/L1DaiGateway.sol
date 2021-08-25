@@ -43,7 +43,7 @@ contract L1DaiGateway is L1ArbitrumExtendedGateway {
     emit Deny(usr);
   }
 
-  modifier auth {
+  modifier auth() {
     require(wards[msg.sender] == 1, "L1DaiGateway/not-authorized");
     _;
   }
@@ -82,51 +82,30 @@ contract L1DaiGateway is L1ArbitrumExtendedGateway {
   }
 
   function createOutboundTx(
-    address _l1Token,
     address _from,
-    address _to,
-    uint256 _amount,
+    uint256 _tokenAmount,
     uint256 _maxGas,
     uint256 _gasPriceBid,
     uint256 _maxSubmissionCost,
-    bytes memory _extraData
-  ) internal virtual override returns (uint256) {
+    bytes memory _outboundCalldata
+  ) internal override returns (uint256) {
     // do not allow initiating new xchain messages if bridge is closed
     require(isOpen == 1, "L1DaiGateway/closed");
 
     return
       sendTxToL2(
+        inbox,
+        counterpartGateway,
         _from,
-        0,
-        _maxSubmissionCost,
-        _maxGas,
-        _gasPriceBid,
-        getOutboundCalldata(_l1Token, _from, _to, _amount, _extraData)
+        msg.value, // we forward the L1 call value to the inbox
+        0, // l2 call value 0 by default
+        L2GasParams({
+          _maxSubmissionCost: _maxSubmissionCost,
+          _maxGas: _maxGas,
+          _gasPriceBid: _gasPriceBid
+        }),
+        _outboundCalldata
       );
-  }
-
-  function sendTxToL2(
-    address _inbox,
-    address _to,
-    address _user,
-    uint256 _l2CallValue,
-    uint256 _maxSubmissionCost,
-    uint256 _maxGas,
-    uint256 _gasPriceBid,
-    bytes memory _data
-  ) internal virtual override returns (uint256) {
-    uint256 seqNum = IInbox(_inbox).createRetryableTicket(
-      _to,
-      _l2CallValue,
-      _maxSubmissionCost,
-      _user,
-      _user,
-      _maxGas,
-      _gasPriceBid,
-      _data
-    );
-    emit TxToL2(_user, _to, seqNum, _data);
-    return seqNum;
   }
 
   function outboundEscrowTransfer(
@@ -145,13 +124,7 @@ contract L1DaiGateway is L1ArbitrumExtendedGateway {
     TokenLike(_l1Token).transferFrom(l1Escrow, _dest, _amount);
   }
 
-  function _calculateL2TokenAddress(address l1ERC20)
-    internal
-    view
-    virtual
-    override
-    returns (address)
-  {
+  function calculateL2TokenAddress(address l1ERC20) public view override returns (address) {
     require(l1ERC20 == l1Dai, "L1DaiGateway/token-not-dai");
     return l2Dai;
   }

@@ -14,6 +14,7 @@
     "lint": "yarn workspace bridge lint",
     "format": "yarn workspace bridge format",
     "test": "yarn workspace bridge test",
+    "test-e2e": "yarn workspace bridge test-e2e",
     "test:fix": "yarn workspace bridge test:fix"
   }
 }

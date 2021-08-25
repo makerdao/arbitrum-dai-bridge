@@ -1,10 +1,10 @@
+import { assertPublicMutableMethods, getRandomAddresses, simpleDeploy, testAuth } from '@makerdao/hardhat-utils'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/dist/src/signer-with-address'
 import { expect } from 'chai'
 import { ethers } from 'hardhat'
 
+import { deployArbitrumContractMock } from '../../arbitrum-helpers/mocks'
 import { L1GovernanceRelay__factory, L2GovernanceRelay__factory } from '../../typechain'
-import { testAuth } from '../helpers/auth'
-import { assertPublicMutableMethods, deploy, deployArbitrumContractMock, getRandomAddresses } from '../helpers/helpers'
 
 const errorMessages = {
   invalidMessenger: 'OVM_XCHAIN: messenger contract unauthenticated',
@@ -55,7 +55,7 @@ describe('L1GovernanceRelay', () => {
     it('assigns all variables properly', async () => {
       const [l2GovernanceRelay, inbox] = await ethers.getSigners()
 
-      const l1GovRelay = await deploy<L1GovernanceRelay__factory>('L1GovernanceRelay', [
+      const l1GovRelay = await simpleDeploy<L1GovernanceRelay__factory>('L1GovernanceRelay', [
         inbox.address,
         l2GovernanceRelay.address,
       ])
@@ -73,25 +73,25 @@ describe('L1GovernanceRelay', () => {
     ])
   })
 
-  testAuth(
-    'L1GovernanceRelay',
-    async () => {
+  testAuth({
+    name: 'L1GovernanceRelay',
+    getDeployArgs: async () => {
       const [l2GovernanceRelay, l1CrossDomainMessengerMock] = await getRandomAddresses()
 
       return [l2GovernanceRelay, l1CrossDomainMessengerMock]
     },
-    [
+    authedMethods: [
       async (c) => {
         const [target] = await getRandomAddresses()
         return c.relay(target, '0x', 0, 0, 0)
       },
     ],
-  )
+  })
 })
 
 async function setupTest(signers: { l2GovernanceRelay: SignerWithAddress }) {
   const inboxMock = await deployArbitrumContractMock('Inbox')
-  const l1GovernanceRelay = await deploy<L1GovernanceRelay__factory>('L1GovernanceRelay', [
+  const l1GovernanceRelay = await simpleDeploy<L1GovernanceRelay__factory>('L1GovernanceRelay', [
     inboxMock.address,
     signers.l2GovernanceRelay.address,
   ])

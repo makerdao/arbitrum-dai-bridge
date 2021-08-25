@@ -24,9 +24,6 @@ contract L2GovernanceRelay {
     l1GovernanceRelay = _l1GovernanceRelay;
   }
 
-  /**
-   * @dev Execute the call from L1.
-   */
   function relay(address target, bytes calldata targetData) external {
     require(msg.sender == l1GovernanceRelay, "L2GovernanceRelay/not-called-by-l1GovernanceRelay");
     // require(); todo: require that it's a top-level call releyed from L1
