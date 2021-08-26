@@ -1,3 +1,4 @@
+import 'hardhat-gas-reporter'
 import '@nomiclabs/hardhat-etherscan'
 import '@nomiclabs/hardhat-ethers'
 import '@nomiclabs/hardhat-waffle'
@@ -18,6 +19,11 @@ const config: HardhatUserConfig = {
   },
   paths: {
     tests: testDir,
+  },
+  gasReporter: {
+    enabled: process.env.REPORT_GAS === '1',
+    currency: 'USD',
+    gasPrice: 50,
   },
 }
 
