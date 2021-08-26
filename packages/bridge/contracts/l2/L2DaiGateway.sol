@@ -18,10 +18,8 @@
 
 pragma solidity ^0.6.11;
 
-import "arb-bridge-peripherals/contracts/tokenbridge/arbitrum/gateway/L2ArbitrumGateway.sol";
 import "arb-bridge-peripherals/contracts/tokenbridge/libraries/gateway/ITokenGateway.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import "./L2ArbitrumMessenger.sol";
 
 interface Mintable {
   function mint(address usr, uint256 wad) external;
@@ -29,7 +27,7 @@ interface Mintable {
   function burn(address usr, uint256 wad) external;
 }
 
-contract L2DaiGateway {
+contract L2DaiGateway is L2ArbitrumMessenger {
   // --- Auth ---
   mapping(address => uint256) public wards;
 
@@ -69,6 +67,15 @@ contract L2DaiGateway {
     uint256 _exitNum,
     uint256 _amount,
     bytes _userData
+  );
+
+  event InboundTransferFinalized(
+    address token,
+    address indexed _from,
+    address indexed _to,
+    uint256 indexed _transferId,
+    uint256 _amount,
+    bytes _data
   );
 
   constructor(
@@ -111,8 +118,8 @@ contract L2DaiGateway {
   ) public returns (bytes memory res) {
     require(isOpen == 1, "L2DaiGateway/closed");
     require(_l1Token == l1Dai, "L2DaiGateway/token-not-dai");
-    (address _from, bytes memory _extraData) = parseOutboundData(_data);
 
+    (address _from, bytes memory _extraData) = parseOutboundData(_data);
     require(_extraData.length == 0, "L2DaiGateway/call-hook-data-not-allowed");
 
     // unique id used to identify the L2 to L1 tx
@@ -138,19 +145,6 @@ contract L2DaiGateway {
     return abi.encode(id);
   }
 
-  function parseOutboundData(bytes memory _data)
-    internal
-    view
-    returns (address _from, bytes memory _extraData)
-  {
-    if (msg.sender == l2Router) {
-      (_from, _extraData) = abi.decode(_data, (address, bytes));
-    } else {
-      _from = msg.sender;
-      _extraData = _data;
-    }
-  }
-
   function getOutboundCalldata(
     address _token,
     address _from,
@@ -170,26 +164,13 @@ contract L2DaiGateway {
     return outboundCalldata;
   }
 
-  event TxToL1(address indexed _from, address indexed _to, uint256 indexed _id, bytes _data);
-
-  function sendTxToL1(
-    uint256 _l1CallValue,
-    address _from,
-    address _to,
-    bytes memory _data
-  ) internal returns (uint256) {
-    uint256 _id = ArbSys(address(100)).sendTxToL1{value: _l1CallValue}(_to, _data);
-    emit TxToL1(_from, _to, _id, _data);
-    return _id;
-  }
-
   function finalizeInboundTransfer(
     address _token,
     address _from,
     address _to,
     uint256 _amount,
     bytes calldata _data
-  ) external payable onlyCounterpartGateway returns (bytes memory) {
+  ) external payable onlyL1Counterpart(l1Counterpart) returns (bytes memory) {
     require(_token == l1Dai, "L2DaiGateway/token-not-dai");
     (bytes memory gatewayData, bytes memory callHookData) = abi.decode(_data, (bytes, bytes));
 
@@ -201,19 +182,16 @@ contract L2DaiGateway {
     return bytes("");
   }
 
-  event InboundTransferFinalized(
-    address token,
-    address indexed _from,
-    address indexed _to,
-    uint256 indexed _transferId,
-    uint256 _amount,
-    bytes _data
-  );
-
-  modifier onlyCounterpartGateway() virtual {
-    // this method is overriden in gateways that require special logic for validation
-    // ie L2 to L1 messages need to be validated against the outbox
-    require(msg.sender == l1Counterpart, "ONLY_COUNTERPART_GATEWAY");
-    _;
+  function parseOutboundData(bytes memory _data)
+    internal
+    view
+    returns (address _from, bytes memory _extraData)
+  {
+    if (msg.sender == l2Router) {
+      (_from, _extraData) = abi.decode(_data, (address, bytes));
+    } else {
+      _from = msg.sender;
+      _extraData = _data;
+    }
   }
 }
