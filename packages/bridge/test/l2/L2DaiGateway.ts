@@ -25,7 +25,7 @@ const errorMessages = {
 }
 
 describe('L2DaiGateway', () => {
-  describe.only('finalizeInboundTransfer', () => {
+  describe('finalizeInboundTransfer', () => {
     const depositAmount = 100
     const defaultData = ethers.utils.defaultAbiCoder.encode(['bytes', 'bytes'], ['0x12', '0x'])
 
@@ -508,23 +508,22 @@ describe('L2DaiGateway', () => {
         l2Dai,
       ])
 
-      expect(await l2DaiGateway.counterpartGateway()).to.be.eq(l1Counterpart)
-      expect(await l2DaiGateway.router()).to.be.eq(router)
+      expect(await l2DaiGateway.l1Counterpart()).to.be.eq(l1Counterpart)
+      expect(await l2DaiGateway.l2Router()).to.be.eq(router)
       expect(await l2DaiGateway.l1Dai()).to.be.eq(l1Dai)
       expect(await l2DaiGateway.l2Dai()).to.be.eq(l2Dai)
       expect(await l2DaiGateway.isOpen()).to.be.eq(1)
     })
   })
 
-  describe('inboundEscrowAndCall', () => {
-    it("can't be called from the outside", async () => {
-      const [owner, l1Dai, router] = await ethers.getSigners()
-      const { l2DaiGateway, l2Dai } = await setupTest({ l1Dai, l1DaiBridge: owner, router })
-
-      await expect(
-        l2DaiGateway.inboundEscrowAndCall(l2Dai.address, 100, owner.address, owner.address, '0x'),
-      ).to.be.revertedWith(errorMessages.inboundEscrowAndCallGuard)
-    })
+  describe.skip('inboundEscrowAndCall', () => {
+    // it("can't be called from the outside", async () => {
+    //   const [owner, l1Dai, router] = await ethers.getSigners()
+    //   const { l2DaiGateway, l2Dai } = await setupTest({ l1Dai, l1DaiBridge: owner, router })
+    //   await expect(
+    //     l2DaiGateway.inboundEscrowAndCall(l2Dai.address, 100, owner.address, owner.address, '0x'),
+    //   ).to.be.revertedWith(errorMessages.inboundEscrowAndCallGuard)
+    // })
   })
 
   it('has correct public interface', async () => {
@@ -532,23 +531,20 @@ describe('L2DaiGateway', () => {
       'finalizeInboundTransfer(address,address,address,uint256,bytes)', // finalize deposit
       'outboundTransfer(address,address,uint256,bytes)', // withdraw
       'outboundTransfer(address,address,uint256,uint256,uint256,bytes)', // withdrawTo
-      'inboundEscrowAndCall(address,uint256,address,address,bytes)', // not really public
       'close()',
       'rely(address)',
       'deny(address)',
     ])
     await assertPublicNotMutableMethods('L2DaiGateway', [
-      'calculateL2TokenAddress(address)',
-      'gasReserveIfCallRevert()',
       'getOutboundCalldata(address,address,address,uint256,bytes)',
 
       // storage variables:
-      'counterpartGateway()',
+      'l1Counterpart()',
       'isOpen()',
       'exitNum()',
       'l1Dai()',
       'l2Dai()',
-      'router()',
+      'l2Router()',
       'wards(address)',
     ])
   })
