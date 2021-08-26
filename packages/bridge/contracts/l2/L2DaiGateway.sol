@@ -111,16 +111,8 @@ contract L2DaiGateway {
   ) public returns (bytes memory res) {
     require(isOpen == 1, "L2DaiGateway/closed");
     require(_l1Token == l1Dai, "L2DaiGateway/token-not-dai");
-    address _from;
-    bytes memory _extraData;
-    {
-      if (msg.sender == l2Router) {
-        (_from, _extraData) = abi.decode(_data, (address, bytes));
-      } else {
-        _from = msg.sender;
-        _extraData = _data;
-      }
-    }
+    (address _from, bytes memory _extraData) = parseOutboundData(_data);
+
     require(_extraData.length == 0, "L2DaiGateway/call-hook-data-not-allowed");
 
     // unique id used to identify the L2 to L1 tx
@@ -144,6 +136,19 @@ contract L2DaiGateway {
 
     emit OutboundTransferInitiatedV1(_l1Token, _from, _to, id, currExitNum, _amount, _extraData);
     return abi.encode(id);
+  }
+
+  function parseOutboundData(bytes memory _data)
+    internal
+    view
+    returns (address _from, bytes memory _extraData)
+  {
+    if (msg.sender == l2Router) {
+      (_from, _extraData) = abi.decode(_data, (address, bytes));
+    } else {
+      _from = msg.sender;
+      _extraData = _data;
+    }
   }
 
   function getOutboundCalldata(
