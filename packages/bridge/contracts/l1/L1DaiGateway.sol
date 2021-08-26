@@ -18,9 +18,8 @@
 
 pragma solidity ^0.6.11;
 
-import "arb-bridge-eth/contracts/bridge/interfaces/IInbox.sol";
-import "arb-bridge-eth/contracts/bridge/interfaces/IOutbox.sol";
 import "arb-bridge-peripherals/contracts/tokenbridge/libraries/gateway/ITokenGateway.sol";
+import "./L1CrossDomainEnabled.sol";
 
 interface TokenLike {
   function transferFrom(
@@ -30,7 +29,7 @@ interface TokenLike {
   ) external returns (bool success);
 }
 
-contract L1DaiGateway {
+contract L1DaiGateway is L1CrossDomainEnabled {
   // --- Auth ---
   mapping(address => uint256) public wards;
 
@@ -57,7 +56,6 @@ contract L1DaiGateway {
   address public immutable l1Escrow;
   address public immutable l1Router;
   address public immutable l2Counterpart;
-  address public immutable inbox;
   uint256 public isOpen = 1;
 
   event Closed();
@@ -79,7 +77,6 @@ contract L1DaiGateway {
     uint256 _amount,
     bytes _data
   );
-  event TxToL2(address indexed _from, address indexed _to, uint256 indexed _seqNum, bytes _data);
 
   constructor(
     address _l2Counterpart,
@@ -88,7 +85,7 @@ contract L1DaiGateway {
     address _l1Dai,
     address _l2Dai,
     address _l1Escrow
-  ) public {
+  ) public L1CrossDomainEnabled(_inbox) {
     wards[msg.sender] = 1;
     emit Rely(msg.sender);
 
@@ -97,7 +94,6 @@ contract L1DaiGateway {
     l1Escrow = _l1Escrow;
     l1Router = _l1Router;
     l2Counterpart = _l2Counterpart;
-    inbox = _inbox;
   }
 
   function close() external auth {
@@ -130,7 +126,15 @@ contract L1DaiGateway {
       TokenLike(_l1Token).transferFrom(_from, l1Escrow, _amount);
 
       bytes memory outboundCalldata = getOutboundCalldata(_l1Token, _from, _to, _amount, extraData);
-      seqNum = sendTxToL2(_from, 0, _maxSubmissionCost, _maxGas, _gasPriceBid, outboundCalldata);
+      seqNum = sendTxToL2(
+        l2Counterpart,
+        _from,
+        0,
+        _maxSubmissionCost,
+        _maxGas,
+        _gasPriceBid,
+        outboundCalldata
+      );
     }
 
     // deposits don't have an exit num from L1 to L2, only on the way back
@@ -140,40 +144,19 @@ contract L1DaiGateway {
     return abi.encode(seqNum);
   }
 
-  modifier onlyCounterpartGateway() {
-    address _inbox = inbox;
-
-    // a message coming from the counterpart gateway was executed by the bridge
-    address bridge = address(IInbox(_inbox).bridge());
-    require(msg.sender == bridge, "NOT_FROM_BRIDGE");
-
-    // and the outbox reports that the L2 address of the sender is the counterpart gateway
-    address l2ToL1Sender = getL2ToL1Sender(_inbox);
-    require(l2ToL1Sender == l2Counterpart, "ONLY_COUNTERPART_GATEWAY");
-    _;
-  }
-
-  function getL2ToL1Sender(address _inbox) internal view virtual returns (address) {
-    IOutbox outbox = IOutbox(IInbox(_inbox).bridge().activeOutbox());
-    address l2ToL1Sender = outbox.l2ToL1Sender();
-
-    require(l2ToL1Sender != address(0), "NO_SENDER");
-    return l2ToL1Sender;
-  }
-
   function finalizeInboundTransfer(
     address _token,
     address _from,
     address _to,
     uint256 _amount,
     bytes calldata _data
-  ) external payable onlyCounterpartGateway returns (bytes memory) {
+  ) external payable onlyL2Counterpart(l2Counterpart) returns (bytes memory) {
     require(_token == l1Dai, "L1DaiGateway/token-not-dai");
     (uint256 exitNum, bytes memory callHookData) = abi.decode(_data, (uint256, bytes));
 
     TokenLike(_token).transferFrom(l1Escrow, _to, _amount);
 
-    emit InboundTransferFinalized(_token, _from, _to, exitNum, _amount, _data);
+    emit InboundTransferFinalized(l1Dai, _from, _to, exitNum, _amount, _data);
     return bytes("");
   }
 
@@ -216,27 +199,5 @@ contract L1DaiGateway {
     );
 
     return outboundCalldata;
-  }
-
-  function sendTxToL2(
-    address _user,
-    uint256 _l2CallValue,
-    uint256 _maxSubmissionCost,
-    uint256 _maxGas,
-    uint256 _gasPriceBid,
-    bytes memory _data
-  ) internal virtual returns (uint256) {
-    uint256 seqNum = IInbox(inbox).createRetryableTicket{value: msg.value}(
-      l2Counterpart,
-      _l2CallValue,
-      _maxSubmissionCost,
-      _user,
-      _user,
-      _maxGas,
-      _gasPriceBid,
-      _data
-    );
-    emit TxToL2(_user, l2Counterpart, seqNum, _data);
-    return seqNum;
   }
 }
