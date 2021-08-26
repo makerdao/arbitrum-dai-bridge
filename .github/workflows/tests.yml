@@ -37,4 +37,8 @@ jobs:
       - run: yarn --no-progress --non-interactive --frozen-lockfile
 
       - run: yarn build
-      - run: yarn test
+      - run: REPORT_GAS=1 yarn test
+      - name: Compare gas reports on GitHub
+        run: yarn codechecks
+        env:
+          CC_SECRET: ${{ secrets.CC_SECRET }}
