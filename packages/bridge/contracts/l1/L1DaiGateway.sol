@@ -109,7 +109,7 @@ contract L1DaiGateway is L1CrossDomainEnabled {
     uint256 _maxGas,
     uint256 _gasPriceBid,
     bytes calldata _data
-  ) public payable returns (bytes memory) {
+  ) external payable returns (bytes memory) {
     // do not allow initiating new xchain messages if bridge is closed
     require(isOpen == 1, "L1DaiGateway/closed");
     require(_l1Token == l1Dai, "L1DaiGateway/token-not-dai");
@@ -142,6 +142,27 @@ contract L1DaiGateway is L1CrossDomainEnabled {
     emit OutboundTransferInitiatedV1(l1Dai, _from, _to, seqNum, currExitNum, _amount, extraData);
 
     return abi.encode(seqNum);
+  }
+
+  function getOutboundCalldata(
+    address _l1Token,
+    address _from,
+    address _to,
+    uint256 _amount,
+    bytes memory _data
+  ) public view returns (bytes memory outboundCalldata) {
+    bytes memory emptyBytes = "";
+
+    outboundCalldata = abi.encodeWithSelector(
+      ITokenGateway.finalizeInboundTransfer.selector,
+      _l1Token,
+      _from,
+      _to,
+      _amount,
+      abi.encode(emptyBytes, _data)
+    );
+
+    return outboundCalldata;
   }
 
   function finalizeInboundTransfer(
@@ -178,26 +199,5 @@ contract L1DaiGateway is L1CrossDomainEnabled {
     }
     // user encoded
     (_maxSubmissionCost, _extraData) = abi.decode(_extraData, (uint256, bytes));
-  }
-
-  function getOutboundCalldata(
-    address _l1Token,
-    address _from,
-    address _to,
-    uint256 _amount,
-    bytes memory _data
-  ) public view returns (bytes memory outboundCalldata) {
-    bytes memory emptyBytes = "";
-
-    outboundCalldata = abi.encodeWithSelector(
-      ITokenGateway.finalizeInboundTransfer.selector,
-      _l1Token,
-      _from,
-      _to,
-      _amount,
-      abi.encode(emptyBytes, _data)
-    );
-
-    return outboundCalldata;
   }
 }
