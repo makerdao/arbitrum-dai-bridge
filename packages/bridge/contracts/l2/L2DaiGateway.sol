@@ -19,7 +19,7 @@
 pragma solidity ^0.6.11;
 
 import "arb-bridge-peripherals/contracts/tokenbridge/libraries/gateway/ITokenGateway.sol";
-import "./L2ArbitrumMessenger.sol";
+import "./L2CrossDomainEnabled.sol";
 
 interface Mintable {
   function mint(address usr, uint256 wad) external;
@@ -27,7 +27,7 @@ interface Mintable {
   function burn(address usr, uint256 wad) external;
 }
 
-contract L2DaiGateway is L2ArbitrumMessenger {
+contract L2DaiGateway is L2CrossDomainEnabled {
   // --- Auth ---
   mapping(address => uint256) public wards;
 
