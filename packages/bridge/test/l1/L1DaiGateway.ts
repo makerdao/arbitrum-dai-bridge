@@ -17,6 +17,7 @@ const initialTotalL1Supply = 3000
 const errorMessages = {
   closed: 'L1DaiGateway/closed',
   tokenMismatch: 'L1DaiGateway/token-not-dai',
+  callHookDataNotAllowed: 'L1DaiGateway/call-hook-data-not-allowed',
   insufficientAllowance: 'Dai/insufficient-allowance',
   insufficientFunds: 'Dai/insufficient-balance',
   l2CounterpartMismatch: 'ONLY_COUNTERPART_GATEWAY',
@@ -32,9 +33,14 @@ describe('L1DaiGateway', () => {
     const depositAmount = 100
     const defaultGas = 42
     const maxSubmissionCost = 7
-    const callHookData = '0x12'
+    const emptyCallHookData = '0x'
     const defaultEthValue = parseUnits('0.1', 'ether')
-    const defaultData = defaultAbiCoder.encode(['uint256', 'bytes'], [maxSubmissionCost, callHookData])
+    const defaultData = defaultAbiCoder.encode(['uint256', 'bytes'], [maxSubmissionCost, emptyCallHookData])
+    const notEmptyCallHookData = '0x12'
+    const defaultDataWithNotEmptyCallHookData = defaultAbiCoder.encode(
+      ['uint256', 'bytes'],
+      [maxSubmissionCost, notEmptyCallHookData],
+    )
 
     it('escrows funds and sends xdomain message', async () => {
       const [_deployer, inboxImpersonator, l1EscrowEOA, l2DaiGatewayEOA, routerEOA, sender] = await ethers.getSigners()
@@ -56,7 +62,7 @@ describe('L1DaiGateway', () => {
       const depositCallToMessengerCall = inboxMock.smocked.createRetryableTicket.calls[0]
 
       const expectedDepositId = 0
-      const l2EncodedData = defaultAbiCoder.encode(['bytes', 'bytes'], ['0x', callHookData])
+      const l2EncodedData = defaultAbiCoder.encode(['bytes', 'bytes'], ['0x', emptyCallHookData])
       const expectedDepositXDomainCallData = new L2DaiGateway__factory().interface.encodeFunctionData(
         'finalizeInboundTransfer',
         [l1Dai.address, sender.address, sender.address, depositAmount, l2EncodedData],
@@ -85,7 +91,7 @@ describe('L1DaiGateway', () => {
           expectedDepositId,
           expectedDepositId,
           depositAmount,
-          callHookData,
+          emptyCallHookData,
         )
       await expect(depositTx)
         .to.emit(l1DaiGateway, 'TxToL2')
@@ -110,7 +116,7 @@ describe('L1DaiGateway', () => {
       const depositCallToMessengerCall = inboxMock.smocked.createRetryableTicket.calls[0]
 
       const expectedDepositId = 0
-      const l2EncodedData = defaultAbiCoder.encode(['bytes', 'bytes'], ['0x', callHookData])
+      const l2EncodedData = defaultAbiCoder.encode(['bytes', 'bytes'], ['0x', emptyCallHookData])
       const expectedDepositXDomainCallData = new L2DaiGateway__factory().interface.encodeFunctionData(
         'finalizeInboundTransfer',
         [l1Dai.address, sender.address, receiver.address, depositAmount, l2EncodedData],
@@ -139,7 +145,7 @@ describe('L1DaiGateway', () => {
           expectedDepositId,
           expectedDepositId,
           depositAmount,
-          callHookData,
+          emptyCallHookData,
         )
       await expect(depositTx)
         .to.emit(l1DaiGateway, 'TxToL2')
@@ -164,7 +170,7 @@ describe('L1DaiGateway', () => {
       const depositCallToMessengerCall = inboxMock.smocked.createRetryableTicket.calls[0]
 
       const expectedDepositId = 0
-      const l2EncodedData = defaultAbiCoder.encode(['bytes', 'bytes'], ['0x', callHookData])
+      const l2EncodedData = defaultAbiCoder.encode(['bytes', 'bytes'], ['0x', emptyCallHookData])
       const expectedDepositXDomainCallData = new L2DaiGateway__factory().interface.encodeFunctionData(
         'finalizeInboundTransfer',
         [l1Dai.address, sender.address, sender.address, depositAmount, l2EncodedData],
@@ -192,7 +198,7 @@ describe('L1DaiGateway', () => {
           expectedDepositId,
           expectedDepositId,
           depositAmount,
-          callHookData,
+          emptyCallHookData,
         )
       await expect(depositTx)
         .to.emit(l1DaiGateway, 'TxToL2')
@@ -215,6 +221,31 @@ describe('L1DaiGateway', () => {
           .connect(sender)
           .outboundTransfer(l2Dai.address, sender.address, depositAmount, defaultGas, 0, defaultData),
       ).to.be.revertedWith(errorMessages.tokenMismatch)
+    })
+
+    it('reverts when called with hook calldata', async () => {
+      const [_deployer, inboxImpersonator, l1EscrowEOA, l2DaiGatewayEOA, routerEOA, sender] = await ethers.getSigners()
+      const { l1Dai, l1DaiGateway } = await setupTest({
+        inboxImpersonator,
+        l1Escrow: l1EscrowEOA,
+        l2DaiGateway: l2DaiGatewayEOA,
+        router: routerEOA,
+        user1: sender,
+      })
+
+      await l1Dai.connect(sender).approve(l1DaiGateway.address, depositAmount)
+      await expect(
+        l1DaiGateway
+          .connect(sender)
+          .outboundTransfer(
+            l1Dai.address,
+            sender.address,
+            depositAmount,
+            defaultGas,
+            0,
+            defaultDataWithNotEmptyCallHookData,
+          ),
+      ).to.be.revertedWith(errorMessages.callHookDataNotAllowed)
     })
 
     it('reverts when approval is too low', async () => {

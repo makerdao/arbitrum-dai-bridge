@@ -16,6 +16,7 @@ const initialTotalL2Supply = 3000
 const errorMessages = {
   closed: 'L2DaiGateway/closed',
   tokenMismatch: 'L2DaiGateway/token-not-dai',
+  callHookDataNotAllowed: 'L2DaiGateway/call-hook-data-not-allowed',
   insufficientAllowance: 'Dai/insufficient-allowance',
   insufficientFunds: 'Dai/insufficient-balance',
   notOwner: 'L2DaiGateway/not-authorized',
@@ -241,6 +242,7 @@ describe('L2DaiGateway', () => {
   describe('outboundTransfer(address,address,uint256,bytes)', () => {
     const withdrawAmount = 100
     const defaultData = '0x'
+    const defaultDataWithNotEmptyCallHookData = '0x12'
     const expectedWithdrawalId = 0
 
     it('sends xdomain message and burns tokens', async () => {
@@ -344,6 +346,25 @@ describe('L2DaiGateway', () => {
           defaultData,
         ),
       ).to.be.revertedWith(errorMessages.tokenMismatch)
+    })
+
+    it('reverts when called with callHookData', async () => {
+      const [sender, l1DaiBridge, l1Dai, router] = await ethers.getSigners()
+      const { l2DaiGateway } = await setupWithdrawalTest({
+        l1Dai,
+        l1DaiBridge,
+        router,
+        user1: sender,
+      })
+
+      await expect(
+        l2DaiGateway['outboundTransfer(address,address,uint256,bytes)'](
+          l1Dai.address,
+          sender.address,
+          withdrawAmount,
+          defaultDataWithNotEmptyCallHookData,
+        ),
+      ).to.be.revertedWith(errorMessages.callHookDataNotAllowed)
     })
 
     it('reverts when bridge closed', async () => {

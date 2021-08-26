@@ -121,6 +121,7 @@ contract L2DaiGateway {
         _extraData = _data;
       }
     }
+    require(_extraData.length == 0, "L2DaiGateway/call-hook-data-not-allowed");
 
     // unique id used to identify the L2 to L1 tx
     uint256 id;
@@ -186,8 +187,6 @@ contract L2DaiGateway {
   ) external payable onlyCounterpartGateway returns (bytes memory) {
     require(_token == l1Dai, "L2DaiGateway/token-not-dai");
     (bytes memory gatewayData, bytes memory callHookData) = abi.decode(_data, (bytes, bytes));
-
-    require(callHookData.length == 0, "no calldata please");
 
     Mintable(l2Dai).mint(_to, _amount);
 

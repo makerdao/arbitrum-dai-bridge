@@ -125,6 +125,7 @@ contract L1DaiGateway {
     {
       uint256 _maxSubmissionCost;
       (_from, _maxSubmissionCost, extraData) = parseOutboundData(_data);
+      require(extraData.length == 0, "L1DaiGateway/call-hook-data-not-allowed");
 
       TokenLike(_l1Token).transferFrom(_from, l1Escrow, _amount);
 
@@ -170,7 +171,6 @@ contract L1DaiGateway {
     require(_token == l1Dai, "L1DaiGateway/token-not-dai");
     (uint256 exitNum, bytes memory callHookData) = abi.decode(_data, (uint256, bytes));
 
-    require(callHookData.length == 0, "no calldata allowed");
     TokenLike(_token).transferFrom(l1Escrow, _to, _amount);
 
     emit InboundTransferFinalized(_token, _from, _to, exitNum, _amount, _data);
