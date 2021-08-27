@@ -61,21 +61,21 @@ contract L2DaiGateway is L2CrossDomainEnabled {
 
   event OutboundTransferInitiatedV1(
     address token,
-    address indexed _from,
-    address indexed _to,
-    uint256 indexed _transferId,
-    uint256 _exitNum,
-    uint256 _amount,
-    bytes _userData
+    address indexed from,
+    address indexed to,
+    uint256 indexed transferId,
+    uint256 exitNum,
+    uint256 amount,
+    bytes userData
   );
 
   event InboundTransferFinalized(
     address token,
-    address indexed _from,
-    address indexed _to,
-    uint256 indexed _transferId,
-    uint256 _amount,
-    bytes _data
+    address indexed from,
+    address indexed to,
+    uint256 indexed transferId,
+    uint256 amount,
+    bytes data
   );
 
   constructor(
@@ -100,98 +100,97 @@ contract L2DaiGateway is L2CrossDomainEnabled {
   }
 
   function outboundTransfer(
-    address _l1Token,
-    address _to,
-    uint256 _amount,
-    bytes calldata _data
+    address l1Token,
+    address to,
+    uint256 amount,
+    bytes calldata data
   ) public payable virtual returns (bytes memory) {
-    return outboundTransfer(_l1Token, _to, _amount, 0, 0, _data);
+    return outboundTransfer(l1Token, to, amount, 0, 0, data);
   }
 
   function outboundTransfer(
-    address _l1Token,
-    address _to,
-    uint256 _amount,
-    uint256 _maxGas,
-    uint256 _gasPriceBid,
-    bytes calldata _data
+    address l1Token,
+    address to,
+    uint256 amount,
+    uint256 maxGas, // @todo: unused
+    uint256 gasPriceBid, // @todo: unused
+    bytes calldata data
   ) public returns (bytes memory res) {
     require(isOpen == 1, "L2DaiGateway/closed");
-    require(_l1Token == l1Dai, "L2DaiGateway/token-not-dai");
+    require(l1Token == l1Dai, "L2DaiGateway/token-not-dai");
 
-    (address _from, bytes memory _extraData) = parseOutboundData(_data);
-    require(_extraData.length == 0, "L2DaiGateway/call-hook-data-not-allowed");
+    (address from, bytes memory extraData) = parseOutboundData(data);
+    require(extraData.length == 0, "L2DaiGateway/call-hook-data-not-allowed");
 
     // unique id used to identify the L2 to L1 tx
     uint256 id;
     // exit number used for tradeable exits
     uint256 currExitNum = exitNum;
-    {
-      Mintable(l2Dai).burn(_from, _amount);
 
-      // we override the res field to save on the stack
-      res = getOutboundCalldata(_l1Token, _from, _to, _amount, _extraData);
-      exitNum++;
-      id = sendTxToL1(
-        // default to sending no callvalue to the L1
-        0,
-        _from,
-        l1Counterpart,
-        res
-      );
-    }
+    Mintable(l2Dai).burn(from, amount);
 
-    emit OutboundTransferInitiatedV1(_l1Token, _from, _to, id, currExitNum, _amount, _extraData);
+    // we override the res field to save on the stack
+    res = getOutboundCalldata(l1Token, from, to, amount, extraData);
+    exitNum++;
+    id = sendTxToL1(
+      // default to sending no callvalue to the L1
+      0,
+      from,
+      l1Counterpart,
+      res
+    );
+
+    emit OutboundTransferInitiatedV1(l1Token, from, to, id, currExitNum, amount, extraData);
     return abi.encode(id);
   }
 
   function getOutboundCalldata(
-    address _token,
-    address _from,
-    address _to,
-    uint256 _amount,
-    bytes memory _data
+    address token,
+    address from,
+    address to,
+    uint256 amount,
+    bytes memory data
   ) public view returns (bytes memory outboundCalldata) {
     outboundCalldata = abi.encodeWithSelector(
       ITokenGateway.finalizeInboundTransfer.selector,
-      _token,
-      _from,
-      _to,
-      _amount,
-      abi.encode(exitNum, _data)
+      token,
+      from,
+      to,
+      amount,
+      abi.encode(exitNum, data)
     );
 
     return outboundCalldata;
   }
 
   function finalizeInboundTransfer(
-    address _token,
-    address _from,
-    address _to,
-    uint256 _amount,
-    bytes calldata _data
+    address l1token,
+    address from,
+    address to,
+    uint256 amount,
+    bytes calldata data
   ) external payable onlyL1Counterpart(l1Counterpart) returns (bytes memory) {
-    require(_token == l1Dai, "L2DaiGateway/token-not-dai");
-    (bytes memory gatewayData, bytes memory callHookData) = abi.decode(_data, (bytes, bytes));
+    require(l1token == l1Dai, "L2DaiGateway/token-not-dai");
+    (bytes memory _gatewayData, bytes memory _callHookData) = abi.decode(data, (bytes, bytes)); // @todo this can be removed as we don't use these data at all
 
-    Mintable(l2Dai).mint(_to, _amount);
+    Mintable(l2Dai).mint(to, amount);
 
     // @todo: werid transferId
-    emit InboundTransferFinalized(_token, _from, _to, uint256(uint160(l2Dai)), _amount, _data);
+    emit InboundTransferFinalized(l1token, from, to, uint256(uint160(l2Dai)), amount, data);
 
     return bytes("");
   }
 
-  function parseOutboundData(bytes memory _data)
+  function parseOutboundData(bytes memory data)
     internal
     view
-    returns (address _from, bytes memory _extraData)
+    returns (address from, bytes memory extraData)
   {
     if (msg.sender == l2Router) {
-      (_from, _extraData) = abi.decode(_data, (address, bytes));
+      (from, extraData) = abi.decode(data, (address, bytes));
     } else {
-      _from = msg.sender;
-      _extraData = _data;
+      from = msg.sender;
+      extraData = data;
     }
   }
 }
