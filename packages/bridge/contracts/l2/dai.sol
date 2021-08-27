@@ -154,14 +154,14 @@ contract Dai {
   }
 
   // --- Mint/Burn ---
-  function mint(address to, uint256 value) external auth {
+  function mint(address to, uint256 value) public auth {
     require(to != address(0) && to != address(this), "Dai/invalid-address");
     balanceOf[to] = balanceOf[to] + value; // note: we don't need an overflow check here b/c balanceOf[to] <= totalSupply and there is an overflow check below
     totalSupply   = _add(totalSupply, value);
 
     emit Transfer(address(0), to, value);
   }
-  function burn(address from, uint256 value) external {
+  function burn(address from, uint256 value) public {
     uint256 balance = balanceOf[from];
     require(balance >= value, "Dai/insufficient-balance");
 
