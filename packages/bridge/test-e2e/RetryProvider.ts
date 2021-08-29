@@ -32,13 +32,14 @@ export class RetryProvider extends providers.JsonRpcProvider {
           })}`,
         )
 
-        await this.handleError(attempt, error)
+        await this.handleError(attempt, error, method)
       }
     })
   }
 
-  private async handleError(attempt: number, error: any): Promise<void> {
-    if (attempt >= this.maxAttempts) {
+  private async handleError(attempt: number, error: any, method: string): Promise<void> {
+    // do not retry sendTransaction calls
+    if (attempt >= this.maxAttempts || method === 'sendTransaction') {
       console.log('Got error, failing...', JSON.stringify(error))
       throw error
     } else if (error && error.statusCode) {

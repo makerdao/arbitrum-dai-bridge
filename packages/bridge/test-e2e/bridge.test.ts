@@ -18,13 +18,14 @@ import { depositToStandardBridge, depositToStandardRouter, setGatewayForToken } 
 import { RetryProvider } from './RetryProvider'
 
 describe('bridge', () => {
+  let bridgeDeployment: BridgeDeployment
+  let network: NetworkConfig
+  before(async () => {
+    // bridge deployment is quite time consuming so we do it only once
+    ;({ bridgeDeployment, network } = await setupTest())
+  })
+
   it('deposits funds', async () => {
-    const { bridgeDeployment, network } = await setupTest()
-    await bridgeDeployment.l1Escrow.approve(
-      bridgeDeployment.l1Dai.address,
-      bridgeDeployment.l1DaiGateway.address,
-      ethers.constants.MaxUint256,
-    )
     const initialL1Balance = await bridgeDeployment.l1Dai.balanceOf(network.l1.deployer.address)
     const initialEscrowBalance = await bridgeDeployment.l1Dai.balanceOf(bridgeDeployment.l1Escrow.address)
     const initialL2Balance = await bridgeDeployment.l2Dai.balanceOf(network.l1.deployer.address)
@@ -69,12 +70,6 @@ describe('bridge', () => {
   })
 
   it('deposits funds using gateway', async () => {
-    const { bridgeDeployment, routerDeployment, network } = await setupTest()
-    await bridgeDeployment.l1Escrow.approve(
-      bridgeDeployment.l1Dai.address,
-      bridgeDeployment.l1DaiGateway.address,
-      ethers.constants.MaxUint256,
-    )
     const initialL1Balance = await bridgeDeployment.l1Dai.balanceOf(network.l1.deployer.address)
     const initialEscrowBalance = await bridgeDeployment.l1Dai.balanceOf(bridgeDeployment.l1Escrow.address)
     const initialL2Balance = await bridgeDeployment.l2Dai.balanceOf(network.l1.deployer.address)
