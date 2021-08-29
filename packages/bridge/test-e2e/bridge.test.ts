@@ -170,7 +170,7 @@ export async function setupTest() {
 export function getRinkebyNetworkConfig(): NetworkConfig {
   const pkey = getRequiredEnv('E2E_TESTS_PKEY')
   const l1 = new ethers.providers.JsonRpcProvider(getRequiredEnv('E2E_TESTS_L1_RPC'))
-  const l2 = new RetryProvider(3, getRequiredEnv('E2E_TESTS_L2_RPC'))
+  const l2 = new RetryProvider(5, getRequiredEnv('E2E_TESTS_L2_RPC'))
 
   const l1Deployer = new ethers.Wallet(pkey, l1)
   const l2Deployer = new ethers.Wallet(pkey, l2)

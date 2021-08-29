@@ -120,7 +120,6 @@ export async function depositToStandardRouter({
   const defaultData = defaultAbiCoder.encode(['uint256', 'bytes'], [maxSubmissionPrice, onlyData])
   const ethValue = await maxSubmissionPrice.add(gasPriceBid.mul(maxGas))
 
-  console.log('here')
   return await waitForTx(
     l1Router.connect(from).outboundTransfer(l1TokenAddress, to, deposit, maxGas, gasPriceBid, defaultData, {
       value: ethValue,
