@@ -43,3 +43,40 @@ jobs:
         run: yarn codechecks
         env:
           CC_SECRET: ${{ secrets.CC_SECRET }}
+
+  test-e2e:
+    name: E2E Tests (on rinkeby)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: Set up node
+        uses: actions/setup-node@v2
+        with:
+          node-version: 12.x
+
+      - name: Get yarn cache directory path
+        id: yarn-cache-dir-path
+        run: echo "::set-output name=dir::$(yarn cache dir)"
+
+      - name: Cache YARN dependencies
+        uses: actions/cache@v2
+        with:
+          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+          key: yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            yarn-
+
+      - run: yarn --no-progress --non-interactive --frozen-lockfile
+
+      - run: yarn build
+      - run: yarn test-e2e
+        env:
+          E2E_TESTS_L1_RPC: ${{ secrets.E2E_TESTS_L1_RPC }}
+          # this is not really secret + it's not masked in the output which makes debugging easier
+          E2E_TESTS_L2_RPC: https://rinkeby.arbitrum.io/rpc
+          E2E_TESTS_PKEY: ${{ secrets.E2E_TESTS_PKEY }}

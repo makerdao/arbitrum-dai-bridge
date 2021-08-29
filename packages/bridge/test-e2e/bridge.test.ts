@@ -15,15 +15,18 @@ import {
   waitToRelayTxsToL2,
 } from '../arbitrum-helpers'
 import { depositToStandardBridge, depositToStandardRouter, setGatewayForToken } from '../arbitrum-helpers/bridge'
+import { RetryProvider } from './RetryProvider'
 
 describe('bridge', () => {
+  let routerDeployment: RouterDeployment
+  let bridgeDeployment: BridgeDeployment
+  let network: NetworkConfig
+  before(async () => {
+    // bridge deployment is quite time consuming so we do it only once
+    ;({ bridgeDeployment, network, routerDeployment } = await setupTest())
+  })
+
   it('deposits funds', async () => {
-    const { bridgeDeployment, network } = await setupTest()
-    await bridgeDeployment.l1Escrow.approve(
-      bridgeDeployment.l1Dai.address,
-      bridgeDeployment.l1DaiGateway.address,
-      ethers.constants.MaxUint256,
-    )
     const initialL1Balance = await bridgeDeployment.l1Dai.balanceOf(network.l1.deployer.address)
     const initialEscrowBalance = await bridgeDeployment.l1Dai.balanceOf(bridgeDeployment.l1Escrow.address)
     const initialL2Balance = await bridgeDeployment.l2Dai.balanceOf(network.l1.deployer.address)
@@ -68,12 +71,6 @@ describe('bridge', () => {
   })
 
   it('deposits funds using gateway', async () => {
-    const { bridgeDeployment, routerDeployment, network } = await setupTest()
-    await bridgeDeployment.l1Escrow.approve(
-      bridgeDeployment.l1Dai.address,
-      bridgeDeployment.l1DaiGateway.address,
-      ethers.constants.MaxUint256,
-    )
     const initialL1Balance = await bridgeDeployment.l1Dai.balanceOf(network.l1.deployer.address)
     const initialEscrowBalance = await bridgeDeployment.l1Dai.balanceOf(bridgeDeployment.l1Escrow.address)
     const initialL2Balance = await bridgeDeployment.l2Dai.balanceOf(network.l1.deployer.address)
@@ -169,7 +166,7 @@ export async function setupTest() {
 export function getRinkebyNetworkConfig(): NetworkConfig {
   const pkey = getRequiredEnv('E2E_TESTS_PKEY')
   const l1 = new ethers.providers.JsonRpcProvider(getRequiredEnv('E2E_TESTS_L1_RPC'))
-  const l2 = new ethers.providers.JsonRpcProvider(getRequiredEnv('E2E_TESTS_L2_RPC'))
+  const l2 = new RetryProvider(5, getRequiredEnv('E2E_TESTS_L2_RPC'))
 
   const l1Deployer = new ethers.Wallet(pkey, l1)
   const l2Deployer = new ethers.Wallet(pkey, l2)
