@@ -77,5 +77,6 @@ jobs:
       - run: yarn test-e2e
         env:
           E2E_TESTS_L1_RPC: ${{ secrets.E2E_TESTS_L1_RPC }}
-          E2E_TESTS_L2_RPC: ${{ secrets.E2E_TESTS_L2_RPC }}
+          # this is not really secret + it's not masked in the output which makes debugging easier
+          E2E_TESTS_L2_RPC: https://rinkeby.arbitrum.io/rpc
           E2E_TESTS_PKEY: ${{ secrets.E2E_TESTS_PKEY }}
