@@ -9,6 +9,7 @@ import { providers, Signer, Wallet } from 'ethers'
 import { ethers } from 'hardhat'
 import { assert, Awaited } from 'ts-essentials'
 
+import { delay } from '../test-e2e/RetryProvider'
 import {
   ArbDai,
   Dai,
@@ -160,6 +161,9 @@ export async function deployBridge(deps: NetworkConfig, routerDeployment: Router
   await waitForTx(l1GovRelay.rely(deps.l1.makerPauseProxy))
   await waitForTx(l1GovRelay.rely(deps.l1.makerESM))
   await waitForTx(l1GovRelay.deny(await deps.l1.deployer.getAddress()))
+
+  // @todo: waitForTx should wait till tx is finalized
+  await delay(5000)
 
   console.log('Permission sanity checks...')
   expect(await getActiveWards(l1Escrow, l1BlockOfBeginningOfDeployment)).to.deep.eq([
