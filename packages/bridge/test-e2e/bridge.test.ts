@@ -18,11 +18,12 @@ import { depositToStandardBridge, depositToStandardRouter, setGatewayForToken } 
 import { RetryProvider } from './RetryProvider'
 
 describe('bridge', () => {
+  let routerDeployment: RouterDeployment
   let bridgeDeployment: BridgeDeployment
   let network: NetworkConfig
   before(async () => {
     // bridge deployment is quite time consuming so we do it only once
-    ;({ bridgeDeployment, network } = await setupTest())
+    ;({ bridgeDeployment, network, routerDeployment } = await setupTest())
   })
 
   it('deposits funds', async () => {
