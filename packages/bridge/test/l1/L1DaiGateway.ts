@@ -11,7 +11,7 @@ import { defaultAbiCoder, parseUnits } from 'ethers/lib/utils'
 import { ethers } from 'hardhat'
 
 import { deployArbitrumContractMock } from '../../arbitrum-helpers/mocks'
-import { ArbDai__factory, Dai__factory, L1DaiGateway__factory, L2DaiGateway__factory } from '../../typechain'
+import { Dai__factory, L1DaiGateway__factory, L2DaiGateway__factory } from '../../typechain'
 
 const initialTotalL1Supply = 3000
 const errorMessages = {
@@ -1164,7 +1164,7 @@ async function setupTest(signers: {
   const l1Dai = await simpleDeploy<Dai__factory>('Dai', [])
   await l1Dai.mint(signers.user1.address, initialTotalL1Supply)
 
-  const l2Dai = await simpleDeploy<ArbDai__factory>('ArbDai', [l1Dai.address])
+  const l2Dai = await simpleDeploy<Dai__factory>('Dai', [])
   const inboxMock = await deployArbitrumContractMock('Inbox', {
     address: signers.inboxImpersonator.address,
   })

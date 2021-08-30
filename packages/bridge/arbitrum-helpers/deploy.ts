@@ -11,7 +11,6 @@ import { assert, Awaited } from 'ts-essentials'
 
 import { delay } from '../test-e2e/RetryProvider'
 import {
-  ArbDai,
   Dai,
   L1DaiGateway,
   L1Escrow,
@@ -96,9 +95,7 @@ export async function deployBridge(deps: NetworkConfig, routerDeployment: Router
   const l1Escrow = await deployUsingFactoryAndVerify(deps.l1.deployer, await ethers.getContractFactory('L1Escrow'), [])
   console.log('Deployed l1Escrow at: ', l1Escrow.address)
 
-  const l2Dai = await deployUsingFactoryAndVerify(deps.l2.deployer, await ethers.getContractFactory('ArbDai'), [
-    deps.l1.dai,
-  ])
+  const l2Dai = await deployUsingFactoryAndVerify(deps.l2.deployer, await ethers.getContractFactory('Dai'), [])
   console.log('Deployed l2Dai at: ', l2Dai.address)
   const l1DaiGatewayFutureAddr = await getAddressOfNextDeployedContract(deps.l1.deployer)
   const l2DaiGateway = await deployUsingFactoryAndVerify(
@@ -212,7 +209,7 @@ export async function useStaticDeployment(
       throwIfUndefined(staticConfig.l1Escrow),
       network.l1.deployer,
     )) as L1Escrow,
-    l2Dai: (await ethers.getContractAt('ArbDai', throwIfUndefined(staticConfig.l2Dai), network.l2.deployer)) as ArbDai,
+    l2Dai: (await ethers.getContractAt('Dai', throwIfUndefined(staticConfig.l2Dai), network.l2.deployer)) as Dai,
     l2DaiGateway: (await ethers.getContractAt(
       'L2DaiGateway',
       throwIfUndefined(staticConfig.l2DaiGateway),

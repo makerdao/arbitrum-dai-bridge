@@ -10,7 +10,7 @@ import { expect } from 'chai'
 import { ethers } from 'hardhat'
 
 import { deployArbitrumContractMock } from '../../arbitrum-helpers/mocks'
-import { ArbDai__factory, L1DaiGateway__factory, L2DaiGateway__factory } from '../../typechain'
+import { Dai__factory, L1DaiGateway__factory, L2DaiGateway__factory } from '../../typechain'
 
 const initialTotalL2Supply = 3000
 const errorMessages = {
@@ -586,7 +586,7 @@ async function setupTest(signers: {
   l1DaiBridge: SignerWithAddress
   router: SignerWithAddress
 }) {
-  const l2Dai = await simpleDeploy<ArbDai__factory>('ArbDai', [signers.l1Dai.address])
+  const l2Dai = await simpleDeploy<Dai__factory>('Dai', [])
   const l2DaiGateway = await simpleDeploy<L2DaiGateway__factory>('L2DaiGateway', [
     signers.l1DaiBridge.address,
     signers.router.address,

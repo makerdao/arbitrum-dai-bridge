@@ -3,12 +3,7 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/dist/src/signer-wit
 import { expect } from 'chai'
 import { ethers } from 'hardhat'
 
-import {
-  ArbDai__factory,
-  BadSpell__factory,
-  L2GovernanceRelay__factory,
-  TestDaiMintSpell__factory,
-} from '../../typechain'
+import { BadSpell__factory, Dai__factory, L2GovernanceRelay__factory, TestDaiMintSpell__factory } from '../../typechain'
 
 const errorMessages = {
   invalidMessenger: 'OVM_XCHAIN: messenger contract unauthenticated',
@@ -79,7 +74,7 @@ async function setupTest(signers: {
   l1GovernanceRelay: SignerWithAddress
   deployer: SignerWithAddress
 }) {
-  const l2Dai = await simpleDeploy<ArbDai__factory>('ArbDai', [signers.l1Dai.address])
+  const l2Dai = await simpleDeploy<Dai__factory>('Dai', [])
 
   const l2GovernanceRelay = await simpleDeploy<L2GovernanceRelay__factory>('L2GovernanceRelay', [
     signers.l1GovernanceRelay.address,

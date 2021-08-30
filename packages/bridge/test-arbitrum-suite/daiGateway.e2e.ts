@@ -43,7 +43,7 @@ describe('Bridge peripherals end-to-end Dai gateway', () => {
     l1Dai = await TestDai.deploy()
     l1Dai = await l1Dai.deployed()
 
-    const L2Dai: ContractFactory = await ethers.getContractFactory('ArbDai')
+    const L2Dai: ContractFactory = await ethers.getContractFactory('Dai')
     l2Dai = await L2Dai.deploy(l1Dai.address)
     await l2Dai.deployed()
 
