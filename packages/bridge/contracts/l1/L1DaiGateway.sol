@@ -103,101 +103,101 @@ contract L1DaiGateway is L1CrossDomainEnabled {
   }
 
   function outboundTransfer(
-    address _l1Token,
-    address _to,
-    uint256 _amount,
-    uint256 _maxGas,
-    uint256 _gasPriceBid,
-    bytes calldata _data
+    address l1Token,
+    address to,
+    uint256 amount,
+    uint256 maxGas,
+    uint256 gasPriceBid,
+    bytes calldata data
   ) external payable returns (bytes memory) {
     // do not allow initiating new xchain messages if bridge is closed
     require(isOpen == 1, "L1DaiGateway/closed");
-    require(_l1Token == l1Dai, "L1DaiGateway/token-not-dai");
+    require(l1Token == l1Dai, "L1DaiGateway/token-not-dai");
 
     // we use nested scope to avoid stack too deep errors
-    address _from;
+    address from;
     uint256 seqNum;
     bytes memory extraData;
     {
-      uint256 _maxSubmissionCost;
-      (_from, _maxSubmissionCost, extraData) = parseOutboundData(_data);
+      uint256 maxSubmissionCost;
+      (from, maxSubmissionCost, extraData) = parseOutboundData(data);
       require(extraData.length == 0, "L1DaiGateway/call-hook-data-not-allowed");
 
-      TokenLike(_l1Token).transferFrom(_from, l1Escrow, _amount);
+      TokenLike(l1Token).transferFrom(from, l1Escrow, amount);
 
-      bytes memory outboundCalldata = getOutboundCalldata(_l1Token, _from, _to, _amount, extraData);
+      bytes memory outboundCalldata = getOutboundCalldata(l1Token, from, to, amount, extraData);
       seqNum = sendTxToL2(
         l2Counterpart,
-        _from,
+        from,
         0,
-        _maxSubmissionCost,
-        _maxGas,
-        _gasPriceBid,
+        maxSubmissionCost,
+        maxGas,
+        gasPriceBid,
         outboundCalldata
       );
     }
 
     // deposits don't have an exit num from L1 to L2, only on the way back
     uint256 currExitNum = 0;
-    emit OutboundTransferInitiatedV1(l1Dai, _from, _to, seqNum, currExitNum, _amount, extraData);
+    emit OutboundTransferInitiatedV1(l1Dai, from, to, seqNum, currExitNum, amount, extraData);
 
     return abi.encode(seqNum);
   }
 
   function getOutboundCalldata(
-    address _l1Token,
-    address _from,
-    address _to,
-    uint256 _amount,
-    bytes memory _data
+    address l1Token,
+    address from,
+    address to,
+    uint256 amount,
+    bytes memory data
   ) public view returns (bytes memory outboundCalldata) {
     bytes memory emptyBytes = "";
 
     outboundCalldata = abi.encodeWithSelector(
       ITokenGateway.finalizeInboundTransfer.selector,
-      _l1Token,
-      _from,
-      _to,
-      _amount,
-      abi.encode(emptyBytes, _data)
+      l1Token,
+      from,
+      to,
+      amount,
+      abi.encode(emptyBytes, data)
     );
 
     return outboundCalldata;
   }
 
   function finalizeInboundTransfer(
-    address _token,
-    address _from,
-    address _to,
-    uint256 _amount,
-    bytes calldata _data
+    address token,
+    address from,
+    address to,
+    uint256 amount,
+    bytes calldata data
   ) external payable onlyL2Counterpart(l2Counterpart) returns (bytes memory) {
-    require(_token == l1Dai, "L1DaiGateway/token-not-dai");
-    (uint256 exitNum, bytes memory callHookData) = abi.decode(_data, (uint256, bytes));
+    require(token == l1Dai, "L1DaiGateway/token-not-dai");
+    (uint256 exitNum, bytes memory callHookData) = abi.decode(data, (uint256, bytes));
 
-    TokenLike(_token).transferFrom(l1Escrow, _to, _amount);
+    TokenLike(token).transferFrom(l1Escrow, to, amount);
 
-    emit InboundTransferFinalized(l1Dai, _from, _to, exitNum, _amount, _data);
+    emit InboundTransferFinalized(l1Dai, from, to, exitNum, amount, data);
     return bytes("");
   }
 
-  function parseOutboundData(bytes memory _data)
+  function parseOutboundData(bytes memory data)
     internal
     view
     returns (
-      address _from,
-      uint256 _maxSubmissionCost,
-      bytes memory _extraData
+      address from,
+      uint256 maxSubmissionCost,
+      bytes memory extraData
     )
   {
     if (msg.sender == l1Router) {
       // router encoded
-      (_from, _extraData) = abi.decode(_data, (address, bytes));
+      (from, extraData) = abi.decode(data, (address, bytes));
     } else {
-      _from = msg.sender;
-      _extraData = _data;
+      from = msg.sender;
+      extraData = data;
     }
     // user encoded
-    (_maxSubmissionCost, _extraData) = abi.decode(_extraData, (uint256, bytes));
+    (maxSubmissionCost, extraData) = abi.decode(extraData, (uint256, bytes));
   }
 }

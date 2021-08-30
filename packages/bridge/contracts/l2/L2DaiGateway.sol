@@ -171,7 +171,6 @@ contract L2DaiGateway is L2CrossDomainEnabled {
     bytes calldata data
   ) external payable onlyL1Counterpart(l1Counterpart) returns (bytes memory) {
     require(l1token == l1Dai, "L2DaiGateway/token-not-dai");
-    (bytes memory _gatewayData, bytes memory _callHookData) = abi.decode(data, (bytes, bytes)); // @todo this can be removed as we don't use these data at all
 
     Mintable(l2Dai).mint(to, amount);
 
