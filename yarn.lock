@@ -781,10 +781,10 @@
   resolved "https://registry.yarnpkg.com/@humanwhocodes/object-schema/-/object-schema-1.2.0.tgz#87de7af9c231826fdd68ac7258f77c429e0e5fcf"
   integrity sha512-wdppn25U8z/2yiaT6YGquE6X8sSv7hNMWSXYSSU1jGv/yd6XqjXgTDJ8KP4NgjTXfJ3GbRjeeb8RTV7a/VpM+w==
 
-"@makerdao/hardhat-utils@^0.1.2":
-  version "0.1.2"
-  resolved "https://registry.yarnpkg.com/@makerdao/hardhat-utils/-/hardhat-utils-0.1.2.tgz#59f9c919ad0ce7b5aae7ea4f15a2a8a8955cba9d"
-  integrity sha512-1+q+H6xll28yzjh4gwpV7+ESTM3vRs04Q0cwG1WRihG8G+3d7m9eM0C4+OsymOTonTsqVlDoSs96EytDFOwKJQ==
+"@makerdao/hardhat-utils@^0.1.3":
+  version "0.1.3"
+  resolved "https://registry.yarnpkg.com/@makerdao/hardhat-utils/-/hardhat-utils-0.1.3.tgz#5b91b4f7ad8e9102d945d0c50bdedf59e2222e6d"
+  integrity sha512-06n1Evd1dQdXtmjYSR4D1Z4UZvPAylHJG7mdVsizTnf5hJNV8lb+uI3UOBD61lcvnp29fub/tUs/Nx8ysjJbwg==
   dependencies:
     "@types/chai" "^4.2.12"
     "@types/lodash" "^4.14.172"
