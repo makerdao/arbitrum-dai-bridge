@@ -25,7 +25,7 @@ const errorMessages = {
   inboundEscrowAndCallGuard: 'Mint can only be called by self',
 }
 
-describe.only('L2DaiGateway', () => {
+describe('L2DaiGateway', () => {
   describe('finalizeInboundTransfer', () => {
     const depositAmount = 100
     const defaultData = ethers.utils.defaultAbiCoder.encode(['bytes', 'bytes'], ['0x12', '0x'])
