@@ -25,7 +25,7 @@ const errorMessages = {
   inboundEscrowAndCallGuard: 'Mint can only be called by self',
 }
 
-describe('L2DaiGateway', () => {
+describe.only('L2DaiGateway', () => {
   describe('finalizeInboundTransfer', () => {
     const depositAmount = 100
     const defaultData = ethers.utils.defaultAbiCoder.encode(['bytes', 'bytes'], ['0x12', '0x'])
@@ -46,8 +46,8 @@ describe('L2DaiGateway', () => {
       expect(await l2Dai.balanceOf(receiverAddress)).to.be.eq(depositAmount)
       expect(await l2Dai.totalSupply()).to.be.eq(depositAmount)
       await expect(tx)
-        .to.emit(l2DaiGateway, 'InboundTransferFinalized')
-        .withArgs(l1Dai.address, sender.address, receiverAddress, l2Dai.address, depositAmount, defaultData)
+        .to.emit(l2DaiGateway, 'DepositFinalized')
+        .withArgs(l1Dai.address, sender.address, receiverAddress, depositAmount)
       // await expect(tx).not.to.emit(l2DaiGateway, 'TransferAndCallTriggered')
     })
 
@@ -66,8 +66,8 @@ describe('L2DaiGateway', () => {
       expect(await l2Dai.balanceOf(receiver.address)).to.be.eq(depositAmount)
       expect(await l2Dai.totalSupply()).to.be.eq(depositAmount)
       await expect(tx)
-        .to.emit(l2DaiGateway, 'InboundTransferFinalized')
-        .withArgs(l1Dai.address, sender.address, receiver.address, l2Dai.address, depositAmount, defaultData)
+        .to.emit(l2DaiGateway, 'DepositFinalized')
+        .withArgs(l1Dai.address, sender.address, receiver.address, depositAmount)
       // await expect(tx).not.to.emit(l2DaiGateway, 'TransferAndCallTriggered')
     })
 
@@ -94,8 +94,8 @@ describe('L2DaiGateway', () => {
       expect(onDepositMessengerCall._value).to.be.eq(depositAmount)
       expect(onDepositMessengerCall.data).to.be.eq(callHookData)
       await expect(tx)
-        .to.emit(l2DaiGateway, 'InboundTransferFinalized')
-        .withArgs(l1Dai.address, sender.address, receiverMock.address, l2Dai.address, depositAmount, data)
+        .to.emit(l2DaiGateway, 'DepositFinalized')
+        .withArgs(l1Dai.address, sender.address, receiverMock.address, depositAmount)
       await expect(tx)
         .to.emit(l2DaiGateway, 'TransferAndCallTriggered')
         .withArgs(true, sender.address, receiverMock.address, depositAmount, callHookData)
@@ -124,8 +124,8 @@ describe('L2DaiGateway', () => {
       expect(onWithdrawalMessengerCall._value).to.be.eq(depositAmount)
       expect(onWithdrawalMessengerCall.data).to.be.eq(callHookData)
       await expect(tx)
-        .to.emit(l2DaiGateway, 'InboundTransferFinalized')
-        .withArgs(l1Dai.address, sender.address, receiverMock.address, l2Dai.address, depositAmount, data)
+        .to.emit(l2DaiGateway, 'DepositFinalized')
+        .withArgs(l1Dai.address, sender.address, receiverMock.address, depositAmount)
       await expect(tx)
         .to.emit(l2DaiGateway, 'TransferAndCallTriggered')
         .withArgs(false, sender.address, receiverMock.address, depositAmount, callHookData)
@@ -148,8 +148,8 @@ describe('L2DaiGateway', () => {
       expect(await l2Dai.balanceOf(sender.address)).to.be.eq(depositAmount) // if reverted, sender gets deposited
       expect(await l2Dai.totalSupply()).to.be.eq(depositAmount)
       await expect(tx)
-        .to.emit(l2DaiGateway, 'InboundTransferFinalized')
-        .withArgs(l1Dai.address, sender.address, receiverEOA.address, l2Dai.address, depositAmount, data)
+        .to.emit(l2DaiGateway, 'DepositFinalized')
+        .withArgs(l1Dai.address, sender.address, receiverEOA.address, depositAmount)
       await expect(tx)
         .to.emit(l2DaiGateway, 'TransferAndCallTriggered')
         .withArgs(false, sender.address, receiverEOA.address, depositAmount, callHookData)
@@ -172,8 +172,8 @@ describe('L2DaiGateway', () => {
       expect(await l2Dai.balanceOf(receiverAddress)).to.be.eq(depositAmount)
       expect(await l2Dai.totalSupply()).to.be.eq(depositAmount)
       await expect(tx)
-        .to.emit(l2DaiGateway, 'InboundTransferFinalized')
-        .withArgs(l1Dai.address, sender.address, receiverAddress, l2Dai.address, depositAmount, defaultData)
+        .to.emit(l2DaiGateway, 'DepositFinalized')
+        .withArgs(l1Dai.address, sender.address, receiverAddress, depositAmount)
     })
 
     it('reverts when withdrawing not supported tokens', async () => {
@@ -262,7 +262,7 @@ describe('L2DaiGateway', () => {
       expect(await l2Dai.balanceOf(sender.address)).to.be.eq(initialTotalL2Supply - withdrawAmount)
       expect(await l2Dai.totalSupply()).to.be.eq(initialTotalL2Supply - withdrawAmount)
       await expect(tx)
-        .to.emit(l2DaiGateway, 'OutboundTransferInitiatedV1')
+        .to.emit(l2DaiGateway, 'WithdrawalInitiated')
         .withArgs(
           l1Dai.address,
           sender.address,
@@ -270,7 +270,6 @@ describe('L2DaiGateway', () => {
           expectedWithdrawalId,
           expectedWithdrawalId,
           withdrawAmount,
-          defaultData,
         )
       expect(withdrawCrossChainCall.destAddr).to.eq(l1DaiBridge.address)
       expect(withdrawCrossChainCall.calldataForL1).to.eq(
@@ -307,7 +306,7 @@ describe('L2DaiGateway', () => {
       expect(await l2Dai.balanceOf(receiver.address)).to.be.eq(0)
       expect(await l2Dai.totalSupply()).to.be.eq(initialTotalL2Supply - withdrawAmount)
       await expect(tx)
-        .to.emit(l2DaiGateway, 'OutboundTransferInitiatedV1')
+        .to.emit(l2DaiGateway, 'WithdrawalInitiated')
         .withArgs(
           l1Dai.address,
           sender.address,
@@ -315,7 +314,6 @@ describe('L2DaiGateway', () => {
           expectedWithdrawalId,
           expectedWithdrawalId,
           withdrawAmount,
-          defaultData,
         )
       expect(withdrawCrossChainCall.destAddr).to.eq(l1DaiBridge.address)
       expect(withdrawCrossChainCall.calldataForL1).to.eq(
@@ -463,7 +461,7 @@ describe('L2DaiGateway', () => {
       expect(await l2Dai.balanceOf(sender.address)).to.be.eq(initialTotalL2Supply - withdrawAmount)
       expect(await l2Dai.totalSupply()).to.be.eq(initialTotalL2Supply - withdrawAmount)
       await expect(tx)
-        .to.emit(l2DaiGateway, 'OutboundTransferInitiatedV1')
+        .to.emit(l2DaiGateway, 'WithdrawalInitiated')
         .withArgs(
           l1Dai.address,
           sender.address,
@@ -471,7 +469,6 @@ describe('L2DaiGateway', () => {
           expectedWithdrawalId,
           expectedWithdrawalId,
           withdrawAmount,
-          defaultData,
         )
       expect(withdrawCrossChainCall.destAddr).to.eq(l1DaiBridge.address)
       expect(withdrawCrossChainCall.calldataForL1).to.eq(
