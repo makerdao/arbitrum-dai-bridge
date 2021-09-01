@@ -12,6 +12,45 @@ yarn
 
 ```
 
+## Fuzzing
+
+### Install Echidna
+
+- Precompiled Binaries (recommended)
+
+Before starting, make sure Slither is installed:
+```
+$ pip3 install slither-analyzer
+```
+
+To quickly test Echidna in Linux or MacOS: [release page](https://github.com/crytic/echidna/releases)
+
+### Local Dependencies
+
+- Slither:
+  ```
+  $ pip3 install slither-analyzer
+  ```
+- solc-select:
+  ```
+  $ pip3 install solc-select
+  ```
+
+### Run Echidna Tests
+
+- Install solc version:
+  ```
+  $ solc-select install 0.6.11
+  ```
+- Select solc version:
+  ```
+  $ solc-select use 0.6.11
+  ```
+- Run Echidna Tests:
+  ```
+  $ yarn fuzz
+  ```
+
 ## Certora
 
 ### Install Certora
