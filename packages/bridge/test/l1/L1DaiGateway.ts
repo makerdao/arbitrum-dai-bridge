@@ -1,6 +1,7 @@
 import {
   assertPublicMutableMethods,
   assertPublicNotMutableMethods,
+  getRandomAddress,
   getRandomAddresses,
   simpleDeploy,
   testAuth,
@@ -1041,6 +1042,35 @@ describe('L1DaiGateway', () => {
     })
   })
 
+  describe('calculateL2TokenAddress', () => {
+    it('return l2Dai address when asked about dai', async () => {
+      const [inboxImpersonator, l1EscrowEOA, l2DaiGatewayEOA, routerEOA, user1] = await ethers.getSigners()
+      const { l1DaiGateway, l1Dai, l2Dai } = await setupTest({
+        inboxImpersonator,
+        l1Escrow: l1EscrowEOA,
+        l2DaiGateway: l2DaiGatewayEOA,
+        router: routerEOA,
+        user1,
+      })
+
+      expect(await l1DaiGateway.calculateL2TokenAddress(l1Dai.address)).to.eq(l2Dai.address)
+    })
+
+    it('returns zero address for unknown tokens', async () => {
+      const [inboxImpersonator, l1EscrowEOA, l2DaiGatewayEOA, routerEOA, user1] = await ethers.getSigners()
+      const randomToken = await getRandomAddress()
+      const { l1DaiGateway } = await setupTest({
+        inboxImpersonator,
+        l1Escrow: l1EscrowEOA,
+        l2DaiGateway: l2DaiGatewayEOA,
+        router: routerEOA,
+        user1,
+      })
+
+      expect(await l1DaiGateway.calculateL2TokenAddress(randomToken)).to.eq(ethers.constants.AddressZero)
+    })
+  })
+
   describe('constructor', () => {
     it('assigns all variables properly', async () => {
       const [l2DaiGateway, l1Router, inbox, l1Dai, l2Dai, l1Escrow] = await getRandomAddresses()
@@ -1091,6 +1121,7 @@ describe('L1DaiGateway', () => {
     ])
 
     await assertPublicNotMutableMethods('L1DaiGateway', [
+      'calculateL2TokenAddress(address)',
       'getOutboundCalldata(address,address,address,uint256,bytes)',
 
       // storage variables:

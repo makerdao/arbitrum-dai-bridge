@@ -1,6 +1,6 @@
 pragma solidity ^0.6.11;
 
-interface ITokenGateway {
+interface L2ITokenGateway {
   function outboundTransfer(
     address token,
     address to,

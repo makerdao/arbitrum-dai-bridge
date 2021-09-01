@@ -18,7 +18,8 @@
 
 pragma solidity ^0.6.11;
 
-import "../ITokenGateway.sol";
+import "./L2ITokenGateway.sol";
+import "../l1/L1ITokenGateway.sol";
 import "./L2CrossDomainEnabled.sol";
 
 interface Mintable {
@@ -27,7 +28,7 @@ interface Mintable {
   function burn(address usr, uint256 wad) external;
 }
 
-contract L2DaiGateway is L2CrossDomainEnabled, ITokenGateway {
+contract L2DaiGateway is L2CrossDomainEnabled, L2ITokenGateway {
   // --- Auth ---
   mapping(address => uint256) public wards;
 
@@ -141,7 +142,7 @@ contract L2DaiGateway is L2CrossDomainEnabled, ITokenGateway {
     bytes memory data
   ) public view returns (bytes memory outboundCalldata) {
     outboundCalldata = abi.encodeWithSelector(
-      ITokenGateway.finalizeInboundTransfer.selector,
+      L1ITokenGateway.finalizeInboundTransfer.selector,
       token,
       from,
       to,
