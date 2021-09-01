@@ -60,22 +60,20 @@ contract L1DaiGateway is L1CrossDomainEnabled {
 
   event Closed();
 
-  event OutboundTransferInitiatedV1(
-    address token,
-    address indexed _from,
-    address indexed _to,
-    uint256 indexed _transferId,
-    uint256 _exitNum,
-    uint256 _amount,
-    bytes _userData
+  event DepositInitiated(
+    address l1Token,
+    address indexed from,
+    address indexed to,
+    uint256 indexed sequenceNumber,
+    uint256 amount
   );
-  event InboundTransferFinalized(
-    address token,
-    address indexed _from,
-    address indexed _to,
-    uint256 indexed _transferId,
-    uint256 _amount,
-    bytes _data
+
+  event WithdrawalFinalized(
+    address l1Token,
+    address indexed from,
+    address indexed to,
+    uint256 indexed exitNum,
+    uint256 amount
   );
 
   constructor(
@@ -137,9 +135,7 @@ contract L1DaiGateway is L1CrossDomainEnabled {
       );
     }
 
-    // deposits don't have an exit num from L1 to L2, only on the way back
-    uint256 currExitNum = 0;
-    emit OutboundTransferInitiatedV1(l1Dai, from, to, seqNum, currExitNum, amount, extraData);
+    emit DepositInitiated(l1Token, from, to, seqNum, amount);
 
     return abi.encode(seqNum);
   }
@@ -166,19 +162,18 @@ contract L1DaiGateway is L1CrossDomainEnabled {
   }
 
   function finalizeInboundTransfer(
-    address token,
+    address l1Token,
     address from,
     address to,
     uint256 amount,
     bytes calldata data
-  ) external payable onlyL2Counterpart(l2Counterpart) returns (bytes memory) {
-    require(token == l1Dai, "L1DaiGateway/token-not-dai");
+  ) external payable onlyL2Counterpart(l2Counterpart) {
+    require(l1Token == l1Dai, "L1DaiGateway/token-not-dai");
     (uint256 exitNum, bytes memory callHookData) = abi.decode(data, (uint256, bytes));
 
-    TokenLike(token).transferFrom(l1Escrow, to, amount);
+    TokenLike(l1Token).transferFrom(l1Escrow, to, amount);
 
-    emit InboundTransferFinalized(l1Dai, from, to, exitNum, amount, data);
-    return bytes("");
+    emit WithdrawalFinalized(l1Token, from, to, exitNum, amount);
   }
 
   function parseOutboundData(bytes memory data)

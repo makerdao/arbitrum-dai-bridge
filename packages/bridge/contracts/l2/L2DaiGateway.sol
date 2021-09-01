@@ -59,23 +59,20 @@ contract L2DaiGateway is L2CrossDomainEnabled {
 
   event Closed();
 
-  event OutboundTransferInitiatedV1(
-    address token,
-    address indexed from,
-    address indexed to,
-    uint256 indexed transferId,
-    uint256 exitNum,
-    uint256 amount,
-    bytes userData
+  event DepositFinalized(
+    address indexed l1Token,
+    address indexed _from,
+    address indexed _to,
+    uint256 _amount
   );
 
-  event InboundTransferFinalized(
-    address token,
-    address indexed from,
-    address indexed to,
-    uint256 indexed transferId,
-    uint256 amount,
-    bytes data
+  event WithdrawalInitiated(
+    address l1Token,
+    address indexed _from,
+    address indexed _to,
+    uint256 indexed _l2ToL1Id,
+    uint256 _exitNum,
+    uint256 _amount
   );
 
   constructor(
@@ -104,7 +101,7 @@ contract L2DaiGateway is L2CrossDomainEnabled {
     address to,
     uint256 amount,
     bytes calldata data
-  ) public payable virtual returns (bytes memory) {
+  ) public virtual returns (bytes memory) {
     return outboundTransfer(l1Token, to, amount, 0, 0, data);
   }
 
@@ -112,8 +109,8 @@ contract L2DaiGateway is L2CrossDomainEnabled {
     address l1Token,
     address to,
     uint256 amount,
-    uint256 maxGas, // @todo: unused
-    uint256 gasPriceBid, // @todo: unused
+    uint256, // maxGas
+    uint256, // gasPriceBid
     bytes calldata data
   ) public returns (bytes memory res) {
     require(isOpen == 1, "L2DaiGateway/closed");
@@ -122,8 +119,6 @@ contract L2DaiGateway is L2CrossDomainEnabled {
     (address from, bytes memory extraData) = parseOutboundData(data);
     require(extraData.length == 0, "L2DaiGateway/call-hook-data-not-allowed");
 
-    // unique id used to identify the L2 to L1 tx
-    uint256 id;
     // exit number used for tradeable exits
     uint256 currExitNum = exitNum;
 
@@ -132,7 +127,7 @@ contract L2DaiGateway is L2CrossDomainEnabled {
     // we override the res field to save on the stack
     res = getOutboundCalldata(l1Token, from, to, amount, extraData);
     exitNum++;
-    id = sendTxToL1(
+    uint256 id = sendTxToL1(
       // default to sending no callvalue to the L1
       0,
       from,
@@ -140,7 +135,7 @@ contract L2DaiGateway is L2CrossDomainEnabled {
       res
     );
 
-    emit OutboundTransferInitiatedV1(l1Token, from, to, id, currExitNum, amount, extraData);
+    emit WithdrawalInitiated(l1Token, from, to, id, currExitNum, amount);
     return abi.encode(id);
   }
 
@@ -164,18 +159,17 @@ contract L2DaiGateway is L2CrossDomainEnabled {
   }
 
   function finalizeInboundTransfer(
-    address l1token,
+    address l1Token,
     address from,
     address to,
     uint256 amount,
     bytes calldata data
-  ) external payable onlyL1Counterpart(l1Counterpart) returns (bytes memory) {
-    require(l1token == l1Dai, "L2DaiGateway/token-not-dai");
+  ) external onlyL1Counterpart(l1Counterpart) returns (bytes memory) {
+    require(l1Token == l1Dai, "L2DaiGateway/token-not-dai");
 
     Mintable(l2Dai).mint(to, amount);
 
-    // @todo: werid transferId
-    emit InboundTransferFinalized(l1token, from, to, uint256(uint160(l2Dai)), amount, data);
+    emit DepositFinalized(l1Token, from, to, amount);
 
     return bytes("");
   }

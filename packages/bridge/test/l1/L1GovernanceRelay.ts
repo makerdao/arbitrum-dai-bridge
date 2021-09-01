@@ -1,6 +1,7 @@
 import { assertPublicMutableMethods, getRandomAddresses, simpleDeploy, testAuth } from '@makerdao/hardhat-utils'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/dist/src/signer-with-address'
 import { expect } from 'chai'
+import { parseUnits } from 'ethers/lib/utils'
 import { ethers } from 'hardhat'
 
 import { deployArbitrumContractMock } from '../../arbitrum-helpers/mocks'
@@ -15,6 +16,7 @@ const errorMessages = {
 const MAX_GAS = 5000000
 const GAS_PRICE_BID = 42
 const MAX_SUBMISSION_COST = 69
+const defaultEthValue = parseUnits('0.1', 'ether')
 
 describe('L1GovernanceRelay', () => {
   describe('relay()', () => {
@@ -24,9 +26,12 @@ describe('L1GovernanceRelay', () => {
         l2GovernanceRelay,
       })
 
-      await l1GovernanceRelay.connect(deployer).relay(l2spell.address, [], MAX_GAS, GAS_PRICE_BID, MAX_SUBMISSION_COST)
+      await l1GovernanceRelay
+        .connect(deployer)
+        .relay(l2spell.address, [], MAX_GAS, GAS_PRICE_BID, MAX_SUBMISSION_COST, { value: defaultEthValue })
       const inboxCall = inboxMock.smocked.createRetryableTicket.calls[0]
 
+      expect(await deployer.provider?.getBalance(inboxMock.address)).to.equal(defaultEthValue)
       expect(inboxCall.destAddr).to.equal(l2GovernanceRelay.address)
       expect(inboxCall.l2CallValue).to.equal(0)
       expect(inboxCall.maxSubmissionCost).to.equal(MAX_SUBMISSION_COST)
