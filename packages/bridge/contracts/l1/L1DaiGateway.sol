@@ -167,7 +167,7 @@ contract L1DaiGateway is L1CrossDomainEnabled {
     address to,
     uint256 amount,
     bytes calldata data
-  ) external payable onlyL2Counterpart(l2Counterpart) {
+  ) external onlyL2Counterpart(l2Counterpart) {
     require(l1Token == l1Dai, "L1DaiGateway/token-not-dai");
     (uint256 exitNum, bytes memory callHookData) = abi.decode(data, (uint256, bytes));
 
