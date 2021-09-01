@@ -8,3 +8,7 @@ artifacts-ovm
 cache-ovm
 .env
 gasReporterOutput.json
+
+# certora
+.*certora*
+.last_confs/

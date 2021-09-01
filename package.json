@@ -15,6 +15,7 @@
     "format": "yarn workspace bridge format",
     "test": "yarn workspace bridge test",
     "test-e2e": "yarn workspace bridge test-e2e",
-    "test:fix": "yarn workspace bridge test:fix"
+    "test:fix": "yarn workspace bridge test:fix",
+    "certora": "yarn workspace bridge certora"
   }
 }
