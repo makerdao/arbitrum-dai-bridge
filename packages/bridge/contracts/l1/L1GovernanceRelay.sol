@@ -62,14 +62,14 @@ contract L1GovernanceRelay {
     uint256 maxGas,
     uint256 gasPriceBid,
     uint256 maxSubmissionCost
-  ) external auth {
+  ) external payable auth {
     bytes memory data = abi.encodeWithSelector(
       L2GovernanceRelay.relay.selector,
       target,
       targetData
     );
 
-    IInbox(inbox).createRetryableTicket(
+    IInbox(inbox).createRetryableTicket{value: msg.value}(
       l2GovernanceRelay,
       0,
       maxSubmissionCost,
