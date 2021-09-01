@@ -18,7 +18,7 @@
 
 pragma solidity ^0.6.11;
 
-import "arb-bridge-peripherals/contracts/tokenbridge/libraries/gateway/ITokenGateway.sol";
+import "../ITokenGateway.sol";
 import "./L2CrossDomainEnabled.sol";
 
 interface Mintable {
@@ -27,7 +27,7 @@ interface Mintable {
   function burn(address usr, uint256 wad) external;
 }
 
-contract L2DaiGateway is L2CrossDomainEnabled {
+contract L2DaiGateway is L2CrossDomainEnabled, ITokenGateway {
   // --- Auth ---
   mapping(address => uint256) public wards;
 
@@ -99,7 +99,7 @@ contract L2DaiGateway is L2CrossDomainEnabled {
     address to,
     uint256 amount,
     bytes calldata data
-  ) public virtual returns (bytes memory) {
+  ) external returns (bytes memory) {
     return outboundTransfer(l1Token, to, amount, 0, 0, data);
   }
 
@@ -110,7 +110,7 @@ contract L2DaiGateway is L2CrossDomainEnabled {
     uint256, // maxGas
     uint256, // gasPriceBid
     bytes calldata data
-  ) public returns (bytes memory res) {
+  ) public override returns (bytes memory res) {
     require(isOpen == 1, "L2DaiGateway/closed");
     require(l1Token == l1Dai, "L2DaiGateway/token-not-dai");
 
@@ -158,14 +158,20 @@ contract L2DaiGateway is L2CrossDomainEnabled {
     address to,
     uint256 amount,
     bytes calldata data
-  ) external onlyL1Counterpart(l1Counterpart) returns (bytes memory) {
+  ) external override onlyL1Counterpart(l1Counterpart) {
     require(l1Token == l1Dai, "L2DaiGateway/token-not-dai");
 
     Mintable(l2Dai).mint(to, amount);
 
     emit DepositFinalized(l1Token, from, to, amount);
+  }
 
-    return bytes("");
+  function calculateL2TokenAddress(address l1Token) external view override returns (address) {
+    if (l1Token != l1Dai) {
+      return address(0);
+    }
+
+    return l2Dai;
   }
 
   function parseOutboundData(bytes memory data)

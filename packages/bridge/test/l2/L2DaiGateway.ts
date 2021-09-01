@@ -1,6 +1,7 @@
 import {
   assertPublicMutableMethods,
   assertPublicNotMutableMethods,
+  getRandomAddress,
   getRandomAddresses,
   simpleDeploy,
   testAuth,
@@ -515,6 +516,23 @@ describe('L2DaiGateway', () => {
     })
   })
 
+  describe('calculateL2TokenAddress', () => {
+    it('return l2Dai address when asked about dai', async () => {
+      const [owner, l1Dai, router] = await ethers.getSigners()
+      const { l2DaiGateway, l2Dai } = await setupTest({ l1Dai, l1DaiBridge: owner, router })
+
+      expect(await l2DaiGateway.calculateL2TokenAddress(l1Dai.address)).to.eq(l2Dai.address)
+    })
+
+    it('returns zero address for unknown tokens', async () => {
+      const [owner, l1Dai, router] = await ethers.getSigners()
+      const randomToken = await getRandomAddress()
+      const { l2DaiGateway } = await setupTest({ l1Dai, l1DaiBridge: owner, router })
+
+      expect(await l2DaiGateway.calculateL2TokenAddress(randomToken)).to.eq(ethers.constants.AddressZero)
+    })
+  })
+
   describe('constructor', () => {
     it('assigns all variables properly', async () => {
       const [l1Counterpart, router, l1Dai, l2Dai] = await getRandomAddresses()
@@ -555,6 +573,7 @@ describe('L2DaiGateway', () => {
     ])
     await assertPublicNotMutableMethods('L2DaiGateway', [
       'getOutboundCalldata(address,address,address,uint256,bytes)',
+      'calculateL2TokenAddress(address)',
 
       // storage variables:
       'l1Counterpart()',
