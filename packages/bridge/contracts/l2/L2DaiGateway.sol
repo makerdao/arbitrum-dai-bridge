@@ -55,24 +55,22 @@ contract L2DaiGateway is L2CrossDomainEnabled {
   address public immutable l2Router;
   uint256 public isOpen = 1;
 
-  uint256 public exitNum;
-
   event Closed();
 
   event DepositFinalized(
     address indexed l1Token,
-    address indexed _from,
-    address indexed _to,
-    uint256 _amount
+    address indexed from,
+    address indexed to,
+    uint256 amount
   );
 
   event WithdrawalInitiated(
     address l1Token,
-    address indexed _from,
-    address indexed _to,
-    uint256 indexed _l2ToL1Id,
-    uint256 _exitNum,
-    uint256 _amount
+    address indexed from,
+    address indexed to,
+    uint256 indexed l2ToL1Id,
+    uint256 exitNum,
+    uint256 amount
   );
 
   constructor(
@@ -119,14 +117,10 @@ contract L2DaiGateway is L2CrossDomainEnabled {
     (address from, bytes memory extraData) = parseOutboundData(data);
     require(extraData.length == 0, "L2DaiGateway/call-hook-data-not-allowed");
 
-    // exit number used for tradeable exits
-    uint256 currExitNum = exitNum;
-
     Mintable(l2Dai).burn(from, amount);
 
     // we override the res field to save on the stack
     res = getOutboundCalldata(l1Token, from, to, amount, extraData);
-    exitNum++;
     uint256 id = sendTxToL1(
       // default to sending no callvalue to the L1
       0,
@@ -135,7 +129,7 @@ contract L2DaiGateway is L2CrossDomainEnabled {
       res
     );
 
-    emit WithdrawalInitiated(l1Token, from, to, id, currExitNum, amount);
+    emit WithdrawalInitiated(l1Token, from, to, id, 0, amount);
     return abi.encode(id);
   }
 
@@ -152,7 +146,7 @@ contract L2DaiGateway is L2CrossDomainEnabled {
       from,
       to,
       amount,
-      abi.encode(exitNum, data)
+      abi.encode(0, data)
     );
 
     return outboundCalldata;

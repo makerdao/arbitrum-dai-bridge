@@ -559,7 +559,6 @@ describe('L2DaiGateway', () => {
       // storage variables:
       'l1Counterpart()',
       'isOpen()',
-      'exitNum()',
       'l1Dai()',
       'l2Dai()',
       'l2Router()',
