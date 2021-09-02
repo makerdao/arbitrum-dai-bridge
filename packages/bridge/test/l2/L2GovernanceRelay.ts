@@ -3,11 +3,11 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/dist/src/signer-wit
 import { expect } from 'chai'
 import { ethers } from 'hardhat'
 
+import { getL2SignerFromL1 } from '../../arbitrum-helpers/messaging'
 import { BadSpell__factory, Dai__factory, L2GovernanceRelay__factory, TestDaiMintSpell__factory } from '../../typechain'
 
 const errorMessages = {
-  invalidMessenger: 'OVM_XCHAIN: messenger contract unauthenticated',
-  invalidXDomainMessageOriginator: 'OVM_XCHAIN: wrong sender of cross-domain message',
+  l1CounterpartMismatch: 'ONLY_COUNTERPART_GATEWAY',
   delegatecallError: 'L2GovernanceRelay/delegatecall-error',
   illegalStorageChange: 'L2GovernanceRelay/illegal-storage-change',
 }
@@ -18,14 +18,14 @@ describe('L2GovernanceRelay', () => {
 
     it('mints new tokens', async () => {
       const [deployer, l1GovernanceRelayImpersonator, l1Dai, user1] = await ethers.getSigners()
-      const { l2GovernanceRelay, l2Dai, l2daiMintSpell } = await setupTest({
+      const { l2GovernanceRelay, l2Dai, l2daiMintSpell, l2GovernanceRelayImpersonator } = await setupTest({
         l1Dai,
         l1GovernanceRelay: l1GovernanceRelayImpersonator,
         deployer,
       })
 
       await l2GovernanceRelay
-        .connect(l1GovernanceRelayImpersonator)
+        .connect(l2GovernanceRelayImpersonator)
         .relay(
           l2daiMintSpell.address,
           l2daiMintSpell.interface.encodeFunctionData('mintDai', [l2Dai.address, user1.address, depositAmount]),
@@ -35,11 +35,46 @@ describe('L2GovernanceRelay', () => {
       expect(await l2Dai.totalSupply()).to.be.eq(depositAmount)
     })
 
-    it.skip('[SKIP NOT IMPLEMENTED YET] reverts when called not by XDomainMessenger')
+    it('reverts when called not relying message from l1DaiGateway', async () => {
+      const [deployer, l1GovernanceRelayImpersonator, l1Dai, randomAcc, user1] = await ethers.getSigners()
+      const { l2GovernanceRelay, l2daiMintSpell, l2Dai } = await setupTest({
+        l1Dai,
+        l1GovernanceRelay: l1GovernanceRelayImpersonator,
+        deployer,
+      })
+
+      await expect(
+        l2GovernanceRelay
+          .connect(randomAcc)
+          .relay(
+            l2daiMintSpell.address,
+            l2daiMintSpell.interface.encodeFunctionData('mintDai', [l2Dai.address, user1.address, depositAmount]),
+          ),
+      ).to.be.revertedWith(errorMessages.l1CounterpartMismatch)
+    })
+
+    it('reverts when called directly by l1 counterpart', async () => {
+      // this should fail b/c we require address translation
+      const [deployer, l1GovernanceRelayImpersonator, l1Dai, user1] = await ethers.getSigners()
+      const { l2GovernanceRelay, l2daiMintSpell, l2Dai } = await setupTest({
+        l1Dai,
+        l1GovernanceRelay: l1GovernanceRelayImpersonator,
+        deployer,
+      })
+
+      await expect(
+        l2GovernanceRelay
+          .connect(l1GovernanceRelayImpersonator)
+          .relay(
+            l2daiMintSpell.address,
+            l2daiMintSpell.interface.encodeFunctionData('mintDai', [l2Dai.address, user1.address, depositAmount]),
+          ),
+      ).to.be.revertedWith(errorMessages.l1CounterpartMismatch)
+    })
 
     it('reverts when spell reverts', async () => {
       const [deployer, l1GovernanceRelayImpersonator, l1Dai] = await ethers.getSigners()
-      const { l2GovernanceRelay } = await setupTest({
+      const { l2GovernanceRelay, l2GovernanceRelayImpersonator } = await setupTest({
         l1Dai,
         l1GovernanceRelay: l1GovernanceRelayImpersonator,
         deployer,
@@ -48,7 +83,7 @@ describe('L2GovernanceRelay', () => {
 
       await expect(
         l2GovernanceRelay
-          .connect(l1GovernanceRelayImpersonator)
+          .connect(l2GovernanceRelayImpersonator)
           .relay(badSpell.address, badSpell.interface.encodeFunctionData('abort')),
       ).to.be.revertedWith(errorMessages.delegatecallError)
     })
@@ -84,5 +119,11 @@ async function setupTest(signers: {
 
   const l2daiMintSpell = await simpleDeploy<TestDaiMintSpell__factory>('TestDaiMintSpell', [])
 
-  return { l2Dai, l2GovernanceRelay, l2daiMintSpell }
+  const l2GovernanceRelayImpersonator = await getL2SignerFromL1(signers.l1GovernanceRelay)
+  await signers.deployer.sendTransaction({
+    to: await l2GovernanceRelayImpersonator.getAddress(),
+    value: ethers.utils.parseUnits('0.1', 'ether'),
+  })
+
+  return { l2Dai, l2GovernanceRelay, l2daiMintSpell, l2GovernanceRelayImpersonator }
 }

@@ -15,21 +15,22 @@
 
 pragma solidity ^0.6.11;
 
+import "./L2CrossDomainEnabled.sol";
+
 // Receive xchain message from L1 counterpart and execute given spell
 
-contract L2GovernanceRelay {
+contract L2GovernanceRelay is L2CrossDomainEnabled {
   address public immutable l1GovernanceRelay;
 
   constructor(address _l1GovernanceRelay) public {
     l1GovernanceRelay = _l1GovernanceRelay;
   }
 
-  function relay(address target, bytes calldata targetData) external {
-    require(msg.sender == l1GovernanceRelay, "L2GovernanceRelay/not-called-by-l1GovernanceRelay");
-    // require(); todo: require that it's a top-level call releyed from L1
-
-    bool ok;
-    (ok, ) = target.delegatecall(targetData);
+  function relay(address target, bytes calldata targetData)
+    external
+    onlyL1Counterpart(l1GovernanceRelay)
+  {
+    (bool ok, ) = target.delegatecall(targetData);
     require(ok, "L2GovernanceRelay/delegatecall-error");
   }
 }
