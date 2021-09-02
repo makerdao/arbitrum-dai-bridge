@@ -61,22 +61,6 @@ contract L1DaiGateway is L1CrossDomainEnabled, L1ITokenGateway {
 
   event Closed();
 
-  event DepositInitiated(
-    address l1Token,
-    address indexed from,
-    address indexed to,
-    uint256 indexed sequenceNumber,
-    uint256 amount
-  );
-
-  event WithdrawalFinalized(
-    address l1Token,
-    address indexed from,
-    address indexed to,
-    uint256 indexed exitNum,
-    uint256 amount
-  );
-
   constructor(
     address _l2Counterpart,
     address _l1Router,

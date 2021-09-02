@@ -58,22 +58,6 @@ contract L2DaiGateway is L2CrossDomainEnabled, L2ITokenGateway {
 
   event Closed();
 
-  event DepositFinalized(
-    address indexed l1Token,
-    address indexed from,
-    address indexed to,
-    uint256 amount
-  );
-
-  event WithdrawalInitiated(
-    address l1Token,
-    address indexed from,
-    address indexed to,
-    uint256 indexed l2ToL1Id,
-    uint256 exitNum,
-    uint256 amount
-  );
-
   constructor(
     address _l1Counterpart,
     address _l2Router,

@@ -1,7 +1,25 @@
 pragma solidity ^0.6.11;
 
-// only difference between L1 and L2 version of this interface is payable modifier on outboundTransfer
+// differences between L1 and L2 version of this interface:
+// - payable modifier on outboundTransfer
+// - events
 interface L1ITokenGateway {
+  event DepositInitiated(
+    address l1Token,
+    address indexed from,
+    address indexed to,
+    uint256 indexed sequenceNumber,
+    uint256 amount
+  );
+
+  event WithdrawalFinalized(
+    address l1Token,
+    address indexed from,
+    address indexed to,
+    uint256 indexed exitNum,
+    uint256 amount
+  );
+
   function outboundTransfer(
     address token,
     address to,
@@ -19,6 +37,6 @@ interface L1ITokenGateway {
     bytes calldata data
   ) external;
 
-  // if contract is not supported this should return 0x0 address
+  // if token is not supported this should return 0x0 address
   function calculateL2TokenAddress(address l1Token) external view returns (address);
 }
