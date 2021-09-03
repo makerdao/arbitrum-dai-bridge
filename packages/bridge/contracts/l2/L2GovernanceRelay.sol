@@ -31,6 +31,7 @@ contract L2GovernanceRelay is L2CrossDomainEnabled {
     onlyL1Counterpart(l1GovernanceRelay)
   {
     (bool ok, ) = target.delegatecall(targetData);
+    // note: even if a retryable call fails, it can be retried
     require(ok, "L2GovernanceRelay/delegatecall-error");
   }
 }

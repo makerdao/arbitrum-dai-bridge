@@ -114,6 +114,7 @@ contract L2DaiGateway is L2CrossDomainEnabled, L2ITokenGateway {
       res
     );
 
+    // we don't need to track exitNums (b/c we have no fast exists) so we always use 0
     emit WithdrawalInitiated(l1Token, from, to, id, 0, amount);
     return abi.encode(id);
   }
@@ -131,7 +132,7 @@ contract L2DaiGateway is L2CrossDomainEnabled, L2ITokenGateway {
       from,
       to,
       amount,
-      abi.encode(0, data)
+      abi.encode(0, data) // we don't need to track exitNums (b/c we have no fast exists) so we always use 0
     );
 
     return outboundCalldata;
