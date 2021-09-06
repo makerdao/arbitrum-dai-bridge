@@ -3,12 +3,9 @@
 # Getting started:
 
 ```
-# make sure to install all submodules
-git submodule update --init --recursive
+yarn # install deps
 
-# install all deps
-yarn
-
+yarn test # run tests
 
 ```
 
