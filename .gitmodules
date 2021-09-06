@@ -1,3 +1,0 @@
-[submodule "packages/arbitrum"]
-	path = packages/arbitrum
-	url = https://github.com/OffchainLabs/arbitrum.git
