@@ -33,7 +33,7 @@ contract L1CrossDomainEnabled {
     return l2ToL1Sender;
   }
 
-  // assumes that l1CallValue = msg.sender
+  // assumes that l1CallValue = msg.value
   function sendTxToL2(
     address target,
     address user,
