@@ -14,8 +14,28 @@ const config: HardhatUserConfig = {
     timeout: 50000,
   },
   solidity: {
-    version: '0.6.11',
-    // note: we do not run optimizer
+    // note: we run optimizer only for dai.sol
+    compilers: [
+      {
+        version: '0.6.11',
+        settings: {
+          optimizer: {
+            enabled: false,
+          },
+        },
+      },
+    ],
+    overrides: {
+      'contracts/l2/dai.sol': {
+        version: '0.6.11',
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200,
+          },
+        },
+      },
+    },
   },
   paths: {
     tests: testDir,
