@@ -2,7 +2,7 @@ import { waitForTx } from '@makerdao/hardhat-utils'
 import { BigNumber, ethers, Wallet } from 'ethers'
 import { defaultAbiCoder } from 'ethers/lib/utils'
 
-import { L1DaiGateway, L1GatewayRouter, L2GatewayRouter } from '../typechain'
+import { L1DaiGateway } from '../typechain'
 import { getArbitrumCoreContracts } from './contracts'
 
 export async function getGasPriceBid(l2: ethers.providers.BaseProvider): Promise<BigNumber> {
@@ -98,7 +98,7 @@ export async function depositToStandardRouter({
   to: string
   l2Provider: ethers.providers.BaseProvider
   deposit: BigNumber | string
-  l1Router: L1GatewayRouter
+  l1Router: any
   l1Gateway: L1DaiGateway
   l1TokenAddress: string
   l2GatewayAddress: string
@@ -133,8 +133,8 @@ export async function setGatewayForToken({
   tokenGateway,
 }: {
   l2Provider: ethers.providers.BaseProvider
-  l1Router: L1GatewayRouter
-  l2Router: L2GatewayRouter
+  l1Router: any
+  l2Router: any
   tokenGateway: L1DaiGateway
 }) {
   const token = await tokenGateway.l1Dai()
