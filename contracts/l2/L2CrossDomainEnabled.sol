@@ -15,7 +15,7 @@
 
 pragma solidity ^0.6.11;
 
-import "arbos-contracts/arbos/builtin/ArbSys.sol";
+import "../arbitrum/ArbSys.sol";
 
 contract L2CrossDomainEnabled {
   event TxToL1(address indexed _from, address indexed _to, uint256 indexed _id, bytes _data);

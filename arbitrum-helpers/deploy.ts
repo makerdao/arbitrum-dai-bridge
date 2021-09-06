@@ -10,16 +10,7 @@ import { ethers } from 'hardhat'
 import { assert, Awaited } from 'ts-essentials'
 
 import { delay } from '../test-e2e/RetryProvider'
-import {
-  Dai,
-  L1DaiGateway,
-  L1Escrow,
-  L1GatewayRouter,
-  L1GovernanceRelay,
-  L2DaiGateway,
-  L2GatewayRouter,
-  L2GovernanceRelay,
-} from '../typechain'
+import { Dai, L1DaiGateway, L1Escrow, L1GovernanceRelay, L2DaiGateway, L2GovernanceRelay } from '../typechain'
 
 export interface NetworkConfig {
   l1: {
@@ -48,8 +39,8 @@ interface RouterDependencies {
 }
 
 export interface RouterDeployment {
-  l1GatewayRouter: L1GatewayRouter
-  l2GatewayRouter: L2GatewayRouter
+  l1GatewayRouter: any
+  l2GatewayRouter: any
 }
 
 export type BridgeDeployment = Awaited<ReturnType<typeof deployBridge>>
@@ -240,12 +231,12 @@ export async function useStaticRouterDeployment(
       'L1GatewayRouter',
       throwIfUndefined(staticConfig.l1GatewayRouter),
       network.l1.deployer,
-    )) as L1GatewayRouter,
+    )) as any,
     l2GatewayRouter: (await ethers.getContractAt(
       'L2GatewayRouter',
       throwIfUndefined(staticConfig.l2GatewayRouter),
       network.l1.deployer,
-    )) as L2GatewayRouter,
+    )) as any, // todo types for router
   }
 }
 

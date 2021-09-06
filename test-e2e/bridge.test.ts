@@ -17,7 +17,7 @@ import {
 import { depositToStandardBridge, depositToStandardRouter, setGatewayForToken } from '../arbitrum-helpers/bridge'
 import { RetryProvider } from './RetryProvider'
 
-describe('bridge', () => {
+describe.skip('bridge', () => {
   let routerDeployment: RouterDeployment
   let bridgeDeployment: BridgeDeployment
   let network: NetworkConfig
