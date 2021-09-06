@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "scripts": {
     "build": "hardhat compile",
-    "clean": "hardhat clean && rm -rf artifacts cache",
+    "clean": "hardhat clean && rm -rf artifacts cache crytic-export corpus",
     "format": "prettier --check \"./**/*.{ts,sol}\"",
     "format:fix": "prettier --write \"./**/*.{ts,sol}\"",
     "lint": "eslint --ext .ts test test-e2e arbitrum-helpers hardhat.config.ts",
