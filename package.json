@@ -17,8 +17,9 @@
     "certora": "certoraRun --solc ~/.solc-select/artifacts/solc-0.6.11 contracts/l2/dai.sol:Dai certora/HashHelper.sol --verify Dai:certora/dai.spec --rule_sanity --solc_args \"['--optimize','--optimize-runs','200']\""
   },
   "devDependencies": {
-    "@codechecks/client": "0.1.10-beta",
+    "@codechecks/client": "^0.1.11",
     "@eth-optimism/smock": "=1.1.9",
+    "@makerdao/hardhat-utils": "^0.1.3",
     "@nomiclabs/ethereumjs-vm": "^4.2.2",
     "@nomiclabs/hardhat-ethers": "^2.0.2",
     "@nomiclabs/hardhat-etherscan": "^2.1.2",
@@ -55,8 +56,7 @@
     "ts-node": "^9.0.0",
     "typechain": "^5.0.0",
     "typescript": "^4.0.2",
-    "utf8": "^3.0.0",
-    "@makerdao/hardhat-utils": "^0.1.3"
+    "utf8": "^3.0.0"
   },
   "resolutions": {
     "ethers": "5.4.0",
