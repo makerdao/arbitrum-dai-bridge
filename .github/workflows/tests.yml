@@ -39,7 +39,6 @@ jobs:
       - run: yarn build
       - run: REPORT_GAS=1 yarn test
       - name: Compare gas reports on GitHub
-        working-directory: ./packages/bridge
         run: yarn codechecks
         env:
           CC_SECRET: ${{ secrets.CC_SECRET }}
