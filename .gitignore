@@ -7,6 +7,10 @@ crytic-export/
 .env
 gasReporterOutput.json
 
+# echidna
+crytic-export/
+corpus/
+
 # certora
 .*certora*
 .last_confs/
