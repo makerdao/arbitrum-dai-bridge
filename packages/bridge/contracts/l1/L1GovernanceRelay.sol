@@ -18,11 +18,14 @@ pragma solidity ^0.6.11;
 
 import "arb-bridge-eth/contracts/bridge/interfaces/IInbox.sol";
 
+import "./L1CrossDomainEnabled.sol";
 import "../l2/L2GovernanceRelay.sol";
 
 // Relay a message from L1 to L2GovernanceRelay
+// Sending L1->L2 message on arbitrum requires ETH balance. That's why this contract can receive ether.
+// Excessive ether can be reclaimed by governance by calling reclaim function.
 
-contract L1GovernanceRelay {
+contract L1GovernanceRelay is L1CrossDomainEnabled {
   // --- Auth ---
   mapping(address => uint256) public wards;
 
@@ -41,24 +44,32 @@ contract L1GovernanceRelay {
     _;
   }
 
-  address public immutable inbox;
   address public immutable l2GovernanceRelay;
 
   event Rely(address indexed usr);
   event Deny(address indexed usr);
 
-  constructor(address _inbox, address _l2GovernanceRelay) public {
+  constructor(address _inbox, address _l2GovernanceRelay) public L1CrossDomainEnabled(_inbox) {
     wards[msg.sender] = 1;
     emit Rely(msg.sender);
 
-    inbox = _inbox;
     l2GovernanceRelay = _l2GovernanceRelay;
+  }
+
+  // Allow contract to receive ether
+  receive() external payable {}
+
+  // Allow governance to reclaim stored ether
+  function reclaim(address receiver, uint256 amount) external auth {
+    (bool sent, ) = receiver.call{value: amount}("");
+    require(sent, "L1GovernanceRelay/failed-to-send-ether");
   }
 
   // Forward a call to be repeated on L2
   function relay(
     address target,
     bytes calldata targetData,
+    uint256 l1CallValue,
     uint256 maxGas,
     uint256 gasPriceBid,
     uint256 maxSubmissionCost
@@ -69,12 +80,12 @@ contract L1GovernanceRelay {
       targetData
     );
 
-    IInbox(inbox).createRetryableTicket{value: msg.value}(
+    sendTxToL2(
       l2GovernanceRelay,
+      msg.sender,
+      l1CallValue,
       0,
       maxSubmissionCost,
-      msg.sender,
-      msg.sender,
       maxGas,
       gasPriceBid,
       data

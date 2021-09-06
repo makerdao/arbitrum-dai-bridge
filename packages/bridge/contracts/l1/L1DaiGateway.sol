@@ -18,7 +18,8 @@
 
 pragma solidity ^0.6.11;
 
-import "arb-bridge-peripherals/contracts/tokenbridge/libraries/gateway/ITokenGateway.sol";
+import "./L1ITokenGateway.sol";
+import "../l2/L2ITokenGateway.sol";
 import "./L1CrossDomainEnabled.sol";
 
 interface TokenLike {
@@ -29,7 +30,7 @@ interface TokenLike {
   ) external returns (bool success);
 }
 
-contract L1DaiGateway is L1CrossDomainEnabled {
+contract L1DaiGateway is L1CrossDomainEnabled, L1ITokenGateway {
   // --- Auth ---
   mapping(address => uint256) public wards;
 
@@ -59,22 +60,6 @@ contract L1DaiGateway is L1CrossDomainEnabled {
   uint256 public isOpen = 1;
 
   event Closed();
-
-  event DepositInitiated(
-    address l1Token,
-    address indexed from,
-    address indexed to,
-    uint256 indexed sequenceNumber,
-    uint256 amount
-  );
-
-  event WithdrawalFinalized(
-    address l1Token,
-    address indexed from,
-    address indexed to,
-    uint256 indexed exitNum,
-    uint256 amount
-  );
 
   constructor(
     address _l2Counterpart,
@@ -107,7 +92,7 @@ contract L1DaiGateway is L1CrossDomainEnabled {
     uint256 maxGas,
     uint256 gasPriceBid,
     bytes calldata data
-  ) external payable returns (bytes memory) {
+  ) external payable override returns (bytes memory) {
     // do not allow initiating new xchain messages if bridge is closed
     require(isOpen == 1, "L1DaiGateway/closed");
     require(l1Token == l1Dai, "L1DaiGateway/token-not-dai");
@@ -150,7 +135,7 @@ contract L1DaiGateway is L1CrossDomainEnabled {
     bytes memory emptyBytes = "";
 
     outboundCalldata = abi.encodeWithSelector(
-      ITokenGateway.finalizeInboundTransfer.selector,
+      L2ITokenGateway.finalizeInboundTransfer.selector,
       l1Token,
       from,
       to,
@@ -167,7 +152,7 @@ contract L1DaiGateway is L1CrossDomainEnabled {
     address to,
     uint256 amount,
     bytes calldata data
-  ) external payable onlyL2Counterpart(l2Counterpart) {
+  ) external override onlyL2Counterpart(l2Counterpart) {
     require(l1Token == l1Dai, "L1DaiGateway/token-not-dai");
     (uint256 exitNum, bytes memory callHookData) = abi.decode(data, (uint256, bytes));
 
@@ -194,5 +179,13 @@ contract L1DaiGateway is L1CrossDomainEnabled {
     }
     // user encoded
     (maxSubmissionCost, extraData) = abi.decode(extraData, (uint256, bytes));
+  }
+
+  function calculateL2TokenAddress(address l1Token) external view override returns (address) {
+    if (l1Token != l1Dai) {
+      return address(0);
+    }
+
+    return l2Dai;
   }
 }

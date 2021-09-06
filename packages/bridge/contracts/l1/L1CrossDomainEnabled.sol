@@ -1,21 +1,3 @@
-// SPDX-License-Identifier: Apache-2.0
-
-/*
- * Copyright 2020, Offchain Labs, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 pragma solidity ^0.6.11;
 
 import "arb-bridge-eth/contracts/bridge/interfaces/IInbox.sol";
@@ -24,7 +6,7 @@ import "arb-bridge-eth/contracts/bridge/interfaces/IOutbox.sol";
 contract L1CrossDomainEnabled {
   address public immutable inbox;
 
-  event TxToL2(address indexed _from, address indexed _to, uint256 indexed _seqNum, bytes _data);
+  event TxToL2(address indexed from, address indexed to, uint256 indexed seqNum, bytes data);
 
   constructor(address _inbox) public {
     inbox = _inbox;
@@ -51,26 +33,50 @@ contract L1CrossDomainEnabled {
     return l2ToL1Sender;
   }
 
+  // assumes that l1CallValue = msg.value
   function sendTxToL2(
     address target,
-    address _user,
-    uint256 _l2CallValue,
-    uint256 _maxSubmissionCost,
-    uint256 _maxGas,
-    uint256 _gasPriceBid,
-    bytes memory _data
+    address user,
+    uint256 l2CallValue,
+    uint256 maxSubmissionCost,
+    uint256 maxGas,
+    uint256 gasPriceBid,
+    bytes memory data
   ) internal returns (uint256) {
-    uint256 seqNum = IInbox(inbox).createRetryableTicket{value: msg.value}(
+    return
+      sendTxToL2(
+        target,
+        user,
+        msg.value,
+        l2CallValue,
+        maxSubmissionCost,
+        maxGas,
+        gasPriceBid,
+        data
+      );
+  }
+
+  function sendTxToL2(
+    address target,
+    address user,
+    uint256 l1CallValue,
+    uint256 l2CallValue,
+    uint256 maxSubmissionCost,
+    uint256 maxGas,
+    uint256 gasPriceBid,
+    bytes memory data
+  ) internal returns (uint256) {
+    uint256 seqNum = IInbox(inbox).createRetryableTicket{value: l1CallValue}(
       target,
-      _l2CallValue,
-      _maxSubmissionCost,
-      _user,
-      _user,
-      _maxGas,
-      _gasPriceBid,
-      _data
+      l2CallValue,
+      maxSubmissionCost,
+      user,
+      user,
+      maxGas,
+      gasPriceBid,
+      data
     );
-    emit TxToL2(_user, target, seqNum, _data);
+    emit TxToL2(user, target, seqNum, data);
     return seqNum;
   }
 }

@@ -18,7 +18,8 @@
 
 pragma solidity ^0.6.11;
 
-import "arb-bridge-peripherals/contracts/tokenbridge/libraries/gateway/ITokenGateway.sol";
+import "./L2ITokenGateway.sol";
+import "../l1/L1ITokenGateway.sol";
 import "./L2CrossDomainEnabled.sol";
 
 interface Mintable {
@@ -27,7 +28,7 @@ interface Mintable {
   function burn(address usr, uint256 wad) external;
 }
 
-contract L2DaiGateway is L2CrossDomainEnabled {
+contract L2DaiGateway is L2CrossDomainEnabled, L2ITokenGateway {
   // --- Auth ---
   mapping(address => uint256) public wards;
 
@@ -55,25 +56,7 @@ contract L2DaiGateway is L2CrossDomainEnabled {
   address public immutable l2Router;
   uint256 public isOpen = 1;
 
-  uint256 public exitNum;
-
   event Closed();
-
-  event DepositFinalized(
-    address indexed l1Token,
-    address indexed _from,
-    address indexed _to,
-    uint256 _amount
-  );
-
-  event WithdrawalInitiated(
-    address l1Token,
-    address indexed _from,
-    address indexed _to,
-    uint256 indexed _l2ToL1Id,
-    uint256 _exitNum,
-    uint256 _amount
-  );
 
   constructor(
     address _l1Counterpart,
@@ -101,7 +84,7 @@ contract L2DaiGateway is L2CrossDomainEnabled {
     address to,
     uint256 amount,
     bytes calldata data
-  ) public virtual returns (bytes memory) {
+  ) external returns (bytes memory) {
     return outboundTransfer(l1Token, to, amount, 0, 0, data);
   }
 
@@ -112,21 +95,17 @@ contract L2DaiGateway is L2CrossDomainEnabled {
     uint256, // maxGas
     uint256, // gasPriceBid
     bytes calldata data
-  ) public returns (bytes memory res) {
+  ) public override returns (bytes memory res) {
     require(isOpen == 1, "L2DaiGateway/closed");
     require(l1Token == l1Dai, "L2DaiGateway/token-not-dai");
 
     (address from, bytes memory extraData) = parseOutboundData(data);
     require(extraData.length == 0, "L2DaiGateway/call-hook-data-not-allowed");
 
-    // exit number used for tradeable exits
-    uint256 currExitNum = exitNum;
-
     Mintable(l2Dai).burn(from, amount);
 
     // we override the res field to save on the stack
     res = getOutboundCalldata(l1Token, from, to, amount, extraData);
-    exitNum++;
     uint256 id = sendTxToL1(
       // default to sending no callvalue to the L1
       0,
@@ -135,7 +114,8 @@ contract L2DaiGateway is L2CrossDomainEnabled {
       res
     );
 
-    emit WithdrawalInitiated(l1Token, from, to, id, currExitNum, amount);
+    // we don't need to track exitNums (b/c we have no fast exists) so we always use 0
+    emit WithdrawalInitiated(l1Token, from, to, id, 0, amount);
     return abi.encode(id);
   }
 
@@ -147,12 +127,12 @@ contract L2DaiGateway is L2CrossDomainEnabled {
     bytes memory data
   ) public view returns (bytes memory outboundCalldata) {
     outboundCalldata = abi.encodeWithSelector(
-      ITokenGateway.finalizeInboundTransfer.selector,
+      L1ITokenGateway.finalizeInboundTransfer.selector,
       token,
       from,
       to,
       amount,
-      abi.encode(exitNum, data)
+      abi.encode(0, data) // we don't need to track exitNums (b/c we have no fast exists) so we always use 0
     );
 
     return outboundCalldata;
@@ -164,14 +144,20 @@ contract L2DaiGateway is L2CrossDomainEnabled {
     address to,
     uint256 amount,
     bytes calldata data
-  ) external onlyL1Counterpart(l1Counterpart) returns (bytes memory) {
+  ) external override onlyL1Counterpart(l1Counterpart) {
     require(l1Token == l1Dai, "L2DaiGateway/token-not-dai");
 
     Mintable(l2Dai).mint(to, amount);
 
     emit DepositFinalized(l1Token, from, to, amount);
+  }
 
-    return bytes("");
+  function calculateL2TokenAddress(address l1Token) external view override returns (address) {
+    if (l1Token != l1Dai) {
+      return address(0);
+    }
+
+    return l2Dai;
   }
 
   function parseOutboundData(bytes memory data)
