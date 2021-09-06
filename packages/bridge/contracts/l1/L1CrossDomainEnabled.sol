@@ -15,8 +15,8 @@
 
 pragma solidity ^0.6.11;
 
-import "arb-bridge-eth/contracts/bridge/interfaces/IInbox.sol";
-import "arb-bridge-eth/contracts/bridge/interfaces/IOutbox.sol";
+import "../arbitrum/IInbox.sol";
+import "../arbitrum/IOutbox.sol";
 
 contract L1CrossDomainEnabled {
   address public immutable inbox;

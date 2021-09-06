@@ -15,7 +15,7 @@
 
 pragma solidity ^0.6.11;
 
-import "arb-bridge-eth/contracts/bridge/interfaces/IInbox.sol";
+import "../arbitrum/IInbox.sol";
 
 import "./L1CrossDomainEnabled.sol";
 import "../l2/L2GovernanceRelay.sol";
