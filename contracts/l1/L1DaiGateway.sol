@@ -128,7 +128,7 @@ contract L1DaiGateway is L1CrossDomainEnabled, L1ITokenGateway {
     address to,
     uint256 amount,
     bytes memory data
-  ) public view returns (bytes memory outboundCalldata) {
+  ) public pure returns (bytes memory outboundCalldata) {
     bytes memory emptyBytes = "";
 
     outboundCalldata = abi.encodeWithSelector(
@@ -151,7 +151,7 @@ contract L1DaiGateway is L1CrossDomainEnabled, L1ITokenGateway {
     bytes calldata data
   ) external override onlyL2Counterpart(l2Counterpart) {
     require(l1Token == l1Dai, "L1DaiGateway/token-not-dai");
-    (uint256 exitNum, bytes memory callHookData) = abi.decode(data, (uint256, bytes));
+    (uint256 exitNum, ) = abi.decode(data, (uint256, bytes));
 
     TokenLike(l1Token).transferFrom(l1Escrow, to, amount);
 
