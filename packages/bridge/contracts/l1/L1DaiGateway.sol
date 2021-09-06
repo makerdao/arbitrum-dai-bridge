@@ -1,25 +1,23 @@
-// SPDX-License-Identifier: Apache-2.0
-
-/*
- * Copyright 2020, Offchain Labs, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2021 Dai Foundation
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 pragma solidity ^0.6.11;
 
-import "arb-bridge-eth/contracts/bridge/interfaces/IInbox.sol";
-import "arb-bridge-peripherals/contracts/tokenbridge/ethereum/gateway/L1ArbitrumExtendedGateway.sol";
+import "./L1ITokenGateway.sol";
+import "../l2/L2ITokenGateway.sol";
+import "./L1CrossDomainEnabled.sol";
 
 interface TokenLike {
   function transferFrom(
@@ -29,7 +27,7 @@ interface TokenLike {
   ) external returns (bool success);
 }
 
-contract L1DaiGateway is L1ArbitrumExtendedGateway {
+contract L1DaiGateway is L1CrossDomainEnabled, L1ITokenGateway {
   // --- Auth ---
   mapping(address => uint256) public wards;
 
@@ -54,6 +52,8 @@ contract L1DaiGateway is L1ArbitrumExtendedGateway {
   address public immutable l1Dai;
   address public immutable l2Dai;
   address public immutable l1Escrow;
+  address public immutable l1Router;
+  address public immutable l2Counterpart;
   uint256 public isOpen = 1;
 
   event Closed();
@@ -65,14 +65,15 @@ contract L1DaiGateway is L1ArbitrumExtendedGateway {
     address _l1Dai,
     address _l2Dai,
     address _l1Escrow
-  ) public {
+  ) public L1CrossDomainEnabled(_inbox) {
     wards[msg.sender] = 1;
     emit Rely(msg.sender);
 
-    L1ArbitrumExtendedGateway._initialize(_l2Counterpart, _l1Router, _inbox);
     l1Dai = _l1Dai;
     l2Dai = _l2Dai;
     l1Escrow = _l1Escrow;
+    l1Router = _l1Router;
+    l2Counterpart = _l2Counterpart;
   }
 
   function close() external auth {
@@ -81,51 +82,107 @@ contract L1DaiGateway is L1ArbitrumExtendedGateway {
     emit Closed();
   }
 
-  function createOutboundTx(
-    address _from,
-    uint256 _tokenAmount,
-    uint256 _maxGas,
-    uint256 _gasPriceBid,
-    uint256 _maxSubmissionCost,
-    bytes memory _outboundCalldata
-  ) internal override returns (uint256) {
+  function outboundTransfer(
+    address l1Token,
+    address to,
+    uint256 amount,
+    uint256 maxGas,
+    uint256 gasPriceBid,
+    bytes calldata data
+  ) external payable override returns (bytes memory) {
     // do not allow initiating new xchain messages if bridge is closed
     require(isOpen == 1, "L1DaiGateway/closed");
+    require(l1Token == l1Dai, "L1DaiGateway/token-not-dai");
 
-    return
-      sendTxToL2(
-        inbox,
-        counterpartGateway,
-        _from,
-        msg.value, // we forward the L1 call value to the inbox
-        0, // l2 call value 0 by default
-        L2GasParams({
-          _maxSubmissionCost: _maxSubmissionCost,
-          _maxGas: _maxGas,
-          _gasPriceBid: _gasPriceBid
-        }),
-        _outboundCalldata
+    // we use nested scope to avoid stack too deep errors
+    address from;
+    uint256 seqNum;
+    bytes memory extraData;
+    {
+      uint256 maxSubmissionCost;
+      (from, maxSubmissionCost, extraData) = parseOutboundData(data);
+      require(extraData.length == 0, "L1DaiGateway/call-hook-data-not-allowed");
+
+      TokenLike(l1Token).transferFrom(from, l1Escrow, amount);
+
+      bytes memory outboundCalldata = getOutboundCalldata(l1Token, from, to, amount, extraData);
+      seqNum = sendTxToL2(
+        l2Counterpart,
+        from,
+        0,
+        maxSubmissionCost,
+        maxGas,
+        gasPriceBid,
+        outboundCalldata
       );
+    }
+
+    emit DepositInitiated(l1Token, from, to, seqNum, amount);
+
+    return abi.encode(seqNum);
   }
 
-  function outboundEscrowTransfer(
-    address _l1Token,
-    address _from,
-    uint256 _amount
-  ) internal virtual override {
-    TokenLike(_l1Token).transferFrom(_from, l1Escrow, _amount);
+  function getOutboundCalldata(
+    address l1Token,
+    address from,
+    address to,
+    uint256 amount,
+    bytes memory data
+  ) public view returns (bytes memory outboundCalldata) {
+    bytes memory emptyBytes = "";
+
+    outboundCalldata = abi.encodeWithSelector(
+      L2ITokenGateway.finalizeInboundTransfer.selector,
+      l1Token,
+      from,
+      to,
+      amount,
+      abi.encode(emptyBytes, data)
+    );
+
+    return outboundCalldata;
   }
 
-  function inboundEscrowTransfer(
-    address _l1Token,
-    address _dest,
-    uint256 _amount
-  ) internal virtual override {
-    TokenLike(_l1Token).transferFrom(l1Escrow, _dest, _amount);
+  function finalizeInboundTransfer(
+    address l1Token,
+    address from,
+    address to,
+    uint256 amount,
+    bytes calldata data
+  ) external override onlyL2Counterpart(l2Counterpart) {
+    require(l1Token == l1Dai, "L1DaiGateway/token-not-dai");
+    (uint256 exitNum, bytes memory callHookData) = abi.decode(data, (uint256, bytes));
+
+    TokenLike(l1Token).transferFrom(l1Escrow, to, amount);
+
+    emit WithdrawalFinalized(l1Token, from, to, exitNum, amount);
   }
 
-  function calculateL2TokenAddress(address l1ERC20) public view override returns (address) {
-    require(l1ERC20 == l1Dai, "L1DaiGateway/token-not-dai");
+  function parseOutboundData(bytes memory data)
+    internal
+    view
+    returns (
+      address from,
+      uint256 maxSubmissionCost,
+      bytes memory extraData
+    )
+  {
+    if (msg.sender == l1Router) {
+      // router encoded
+      (from, extraData) = abi.decode(data, (address, bytes));
+    } else {
+      from = msg.sender;
+      extraData = data;
+    }
+    // user encoded
+    (maxSubmissionCost, extraData) = abi.decode(extraData, (uint256, bytes));
+  }
+
+  function calculateL2TokenAddress(address l1Token) external view override returns (address) {
+    if (l1Token != l1Dai) {
+      return address(0);
+    }
+
     return l2Dai;
   }
 }

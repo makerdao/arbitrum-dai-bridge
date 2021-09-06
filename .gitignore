@@ -4,8 +4,6 @@ cache/
 artifacts-l2
 typechain
 crytic-export/
-artifacts-ovm
-cache-ovm
 .env
 gasReporterOutput.json
 
