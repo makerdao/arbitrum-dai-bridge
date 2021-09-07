@@ -596,6 +596,7 @@ describe('L2DaiGateway', () => {
       'l2Dai()',
       'l2Router()',
       'wards(address)',
+      'counterpartGateway()',
     ])
   })
 

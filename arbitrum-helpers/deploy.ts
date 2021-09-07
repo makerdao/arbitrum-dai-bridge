@@ -67,7 +67,7 @@ export async function deployRouter(deps: RouterDependencies): Promise<RouterDepl
 
   const l2GatewayRouter = await deployUsingFactoryAndVerify(
     deps.l2.deployer,
-    await getArbitrumArtifactFactory('L2GatewayRouter'),
+    getArbitrumArtifactFactory('L2GatewayRouter'),
     [],
   )
   expect(l2GatewayRouter.address).to.be.eq(futureAddressOfL2GatewayRouter)
@@ -81,8 +81,6 @@ export async function deployRouter(deps: RouterDependencies): Promise<RouterDepl
 }
 
 export async function deployBridge(deps: NetworkConfig, routerDeployment: RouterDeployment) {
-  const l1BlockOfBeginningOfDeployment = await deps.l1.provider.getBlockNumber()
-  const l2BlockOfBeginningOfDeployment = await deps.l2.provider.getBlockNumber()
   // deploy contracts
   const l1Escrow = await deployUsingFactoryAndVerify(deps.l1.deployer, await ethers.getContractFactory('L1Escrow'), [])
   console.log('Deployed l1Escrow at: ', l1Escrow.address)
@@ -154,25 +152,6 @@ export async function deployBridge(deps: NetworkConfig, routerDeployment: Router
   // @todo: waitForTx should wait till tx is finalized
   await delay(5000)
 
-  console.log('Permission sanity checks...')
-  // expect(await getActiveWards(l1Escrow, l1BlockOfBeginningOfDeployment)).to.deep.eq([
-  //   deps.l1.makerPauseProxy,
-  //   deps.l1.makerESM,
-  // ])
-  // expect(await getActiveWards(l1DaiGateway, l1BlockOfBeginningOfDeployment)).to.deep.eq([
-  //   deps.l1.makerPauseProxy,
-  //   deps.l1.makerESM,
-  // ])
-  // expect(await getActiveWards(l1GovRelay, l1BlockOfBeginningOfDeployment)).to.deep.eq([
-  //   deps.l1.makerPauseProxy,
-  //   deps.l1.makerESM,
-  // ])
-  // expect(await getActiveWards(l2DaiGateway, l2BlockOfBeginningOfDeployment)).to.deep.eq([l2GovRelay.address])
-  // expect(await getActiveWards(l2Dai, l2BlockOfBeginningOfDeployment)).to.deep.eq([
-  //   l2DaiGateway.address,
-  //   l2GovRelay.address,
-  // ])
-
   return {
     l1DaiGateway,
     l1Escrow,
@@ -182,6 +161,34 @@ export async function deployBridge(deps: NetworkConfig, routerDeployment: Router
     l1GovRelay,
     l2GovRelay,
   }
+}
+
+export async function performSanityChecks(
+  deps: NetworkConfig,
+  bridgeDeployment: BridgeDeployment,
+  l1BlockOfBeginningOfDeployment: number,
+  l2BlockOfBeginningOfDeployment: number,
+) {
+  console.log('Permission sanity checks...')
+  expect(await getActiveWards(bridgeDeployment.l1Escrow, l1BlockOfBeginningOfDeployment)).to.deep.eq([
+    deps.l1.makerPauseProxy,
+    deps.l1.makerESM,
+  ])
+  expect(await getActiveWards(bridgeDeployment.l1DaiGateway, l1BlockOfBeginningOfDeployment)).to.deep.eq([
+    deps.l1.makerPauseProxy,
+    deps.l1.makerESM,
+  ])
+  expect(await getActiveWards(bridgeDeployment.l1GovRelay, l1BlockOfBeginningOfDeployment)).to.deep.eq([
+    deps.l1.makerPauseProxy,
+    deps.l1.makerESM,
+  ])
+  expect(await getActiveWards(bridgeDeployment.l2DaiGateway, l2BlockOfBeginningOfDeployment)).to.deep.eq([
+    bridgeDeployment.l2GovRelay.address,
+  ])
+  expect(await getActiveWards(bridgeDeployment.l2Dai, l2BlockOfBeginningOfDeployment)).to.deep.eq([
+    bridgeDeployment.l2DaiGateway.address,
+    bridgeDeployment.l2GovRelay.address,
+  ])
 }
 
 export async function useStaticDeployment(
