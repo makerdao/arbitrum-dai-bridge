@@ -18,7 +18,7 @@ pragma solidity ^0.6.11;
 import "../arbitrum/IInbox.sol";
 import "../arbitrum/IOutbox.sol";
 
-contract L1CrossDomainEnabled {
+abstract contract L1CrossDomainEnabled {
   address public immutable inbox;
 
   event TxToL2(address indexed from, address indexed to, uint256 indexed seqNum, bytes data);

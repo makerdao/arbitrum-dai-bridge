@@ -169,4 +169,8 @@ contract L2DaiGateway is L2CrossDomainEnabled, L2ITokenGateway {
       extraData = data;
     }
   }
+
+  function counterpartGateway() external view override returns (address) {
+    return l1Counterpart;
+  }
 }
