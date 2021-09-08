@@ -11,7 +11,7 @@ import { assert, Awaited } from 'ts-essentials'
 
 import { delay } from '../test-e2e/RetryProvider'
 import { Dai, L1DaiGateway, L1Escrow, L1GovernanceRelay, L2DaiGateway, L2GovernanceRelay } from '../typechain'
-import { getArbitrumArtifactFactory } from './contracts'
+import { getArbitrumArtifact, getArbitrumArtifactFactory } from './contracts'
 
 export interface NetworkConfig {
   l1: {
@@ -131,25 +131,25 @@ export async function deployBridge(deps: NetworkConfig, routerDeployment: Router
   console.log('Setting permissions...')
   await waitForTx(l2Dai.rely(l2DaiGateway.address)) // allow minting/burning from the bridge
   await waitForTx(l2Dai.rely(l2GovRelay.address)) // allow granting new minting rights by the governance
-  await waitForTx(l2Dai.deny(await deps.l2.deployer.getAddress()))
+  // await waitForTx(l2Dai.deny(await deps.l2.deployer.getAddress()))
 
   await waitForTx(l2DaiGateway.rely(l2GovRelay.address)) // allow closing bridge by the governance
-  await waitForTx(l2DaiGateway.deny(await deps.l2.deployer.getAddress()))
+  // await waitForTx(l2DaiGateway.deny(await deps.l2.deployer.getAddress()))
 
   await waitForTx(l1Escrow.approve(deps.l1.dai, l1DaiGateway.address, ethers.constants.MaxUint256)) // allow l1DaiGateway accessing funds from the bridge for withdrawals
   await waitForTx(l1Escrow.rely(deps.l1.makerPauseProxy))
   await waitForTx(l1Escrow.rely(deps.l1.makerESM))
-  await waitForTx(l1Escrow.deny(await deps.l1.deployer.getAddress()))
+  // await waitForTx(l1Escrow.deny(await deps.l1.deployer.getAddress()))
 
   await waitForTx(l1DaiGateway.rely(deps.l1.makerPauseProxy))
   await waitForTx(l1DaiGateway.rely(deps.l1.makerESM))
-  await waitForTx(l1DaiGateway.deny(await deps.l1.deployer.getAddress()))
+  // await waitForTx(l1DaiGateway.deny(await deps.l1.deployer.getAddress()))
 
   await waitForTx(l1GovRelay.rely(deps.l1.makerPauseProxy))
   await waitForTx(l1GovRelay.rely(deps.l1.makerESM))
-  await waitForTx(l1GovRelay.deny(await deps.l1.deployer.getAddress()))
+  // await waitForTx(l1GovRelay.deny(await deps.l1.deployer.getAddress()))
 
-  // @todo: waitForTx should wait till tx is finalized
+  // @todo: waitForTx should wait till txs are finalized
   await delay(5000)
 
   return {
@@ -236,12 +236,12 @@ export async function useStaticRouterDeployment(
 
   return {
     l1GatewayRouter: (await ethers.getContractAt(
-      getArbitrumArtifactFactory('L1GatewayRouter').interface as any,
+      getArbitrumArtifact('L1GatewayRouter').abi as any,
       throwIfUndefined(staticConfig.l1GatewayRouter),
       network.l1.deployer,
     )) as any,
     l2GatewayRouter: (await ethers.getContractAt(
-      getArbitrumArtifactFactory('L2GatewayRouter').interface as any,
+      getArbitrumArtifact('L2GatewayRouter').abi as any,
       throwIfUndefined(staticConfig.l2GatewayRouter),
       network.l1.deployer,
     )) as any, // todo types for router
