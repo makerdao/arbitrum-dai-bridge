@@ -182,17 +182,11 @@ describe('bridge', () => {
       l2DaiGatewayV2.address,
     ])
     const gasPriceBid = await getGasPriceBid(network.l2.provider)
-    console.log('gaspriceBid', gasPriceBid.toString())
-    const maxSubmissionPrice = await getMaxSubmissionPrice(network.l2.provider, 10 * calldata.length + 30)
-    console.log('1')
+    const maxSubmissionPrice = await getMaxSubmissionPrice(network.l2.provider, calldata.length + 30)
     const maxGas = 10000000000
-    console.log('2')
     const ethValue = await maxSubmissionPrice.add(gasPriceBid.mul(maxGas))
 
     await network.l1.deployer.sendTransaction({ to: bridgeDeployment.l1GovRelay.address, value: ethValue })
-    console.log('3')
-    console.log('maxSubmissionPrice', maxSubmissionPrice.toString())
-    console.log('ethValue', ethValue.toString())
 
     await waitToRelayTxsToL2(
       waitForTx(
