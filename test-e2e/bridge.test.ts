@@ -175,9 +175,6 @@ describe('bridge', () => {
     )
     console.log('L2 Bridge Upgrade Spell: ', l2UpgradeSpell.address)
 
-    // make l2DaiGatewayV2
-    // await l2DaiGatewayV2.rely(bridgeDeployment.l2GovRelay.address)
-
     // Close L2 bridge V1
     console.log('Executing spell to close L2 Bridge v1 and grant minting permissions to L2 Bridge v2')
     const calldata = l2UpgradeSpell.interface.encodeFunctionData('upgradeBridge', [
@@ -186,19 +183,22 @@ describe('bridge', () => {
     ])
     const gasPriceBid = await getGasPriceBid(network.l2.provider)
     console.log('gaspriceBid', gasPriceBid.toString())
-    const maxSubmissionPrice = await getMaxSubmissionPrice(network.l2.provider, calldata.length + 30)
+    const maxSubmissionPrice = await getMaxSubmissionPrice(network.l2.provider, 10 * calldata.length + 30)
     console.log('1')
-    const maxGas = 10000000
+    const maxGas = 10000000000
     console.log('2')
     const ethValue = await maxSubmissionPrice.add(gasPriceBid.mul(maxGas))
 
     await network.l1.deployer.sendTransaction({ to: bridgeDeployment.l1GovRelay.address, value: ethValue })
     console.log('3')
+    console.log('maxSubmissionPrice', maxSubmissionPrice.toString())
+    console.log('ethValue', ethValue.toString())
+
     await waitToRelayTxsToL2(
       waitForTx(
         bridgeDeployment.l1GovRelay
           .connect(network.l1.deployer)
-          .relay(l2UpgradeSpell.address, calldata, ethValue, maxGas, maxSubmissionPrice, gasPriceBid),
+          .relay(l2UpgradeSpell.address, calldata, ethValue, maxGas, gasPriceBid, maxSubmissionPrice),
       ),
       network.l1.inbox,
       network.l1.provider,

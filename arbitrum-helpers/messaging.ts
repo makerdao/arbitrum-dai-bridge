@@ -16,8 +16,10 @@ export async function waitToRelayTxsToL2(
     throw new Error('Seq num not found')
   }
   const retryableTicket = await calculateL2TransactionHash(seqNum, l2)
+  console.log('L2 tx hash: ', retryableTicket)
   const autoRedeem = calculateRetryableAutoRedeemTxnHash(retryableTicket)
   const redeemTransaction = calculateL2RetryableTransactionHash(retryableTicket)
+  console.log('L2 auto redeem tx: ', redeemTransaction)
 
   const retryableTicketReceipt = await l2.waitForTransaction(retryableTicket, undefined, 1000 * 60 * 15)
   expect(retryableTicketReceipt.status).to.equal(1)
