@@ -24,22 +24,25 @@ export async function getMaxGas(
   l2: ethers.providers.BaseProvider,
   sender: string,
   destination: string,
+  refundDestination: string,
   maxSubmissionPrice: BigNumber,
   gasPriceBid: BigNumber,
   calldata: string,
 ): Promise<BigNumber> {
-  const [maxGas] = await getArbitrumCoreContracts(l2).nodeInterface.estimateRetryableTicket(
+  const [estimatedGas] = await getArbitrumCoreContracts(l2).nodeInterface.estimateRetryableTicket(
     sender,
     ethers.utils.parseEther('0.05'),
     destination,
     0,
     maxSubmissionPrice,
-    sender,
-    sender,
+    refundDestination,
+    refundDestination,
     0,
     gasPriceBid,
     calldata,
   )
+  const maxGas = estimatedGas.mul(4)
+
   return maxGas
 }
 
@@ -70,6 +73,7 @@ export async function depositToStandardBridge({
     l2Provider,
     l1Gateway.address,
     l2GatewayAddress,
+    from.address,
     maxSubmissionPrice,
     gasPriceBid,
     depositCalldata,
@@ -113,6 +117,7 @@ export async function depositToStandardRouter({
     l2Provider,
     l1Gateway.address,
     l2GatewayAddress,
+    from.address,
     maxSubmissionPrice,
     gasPriceBid,
     depositCalldata,

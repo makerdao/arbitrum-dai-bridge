@@ -24,6 +24,7 @@ import {
   depositToStandardBridge,
   depositToStandardRouter,
   getGasPriceBid,
+  getMaxGas,
   getMaxSubmissionPrice,
   setGatewayForToken,
 } from '../arbitrum-helpers/bridge'
@@ -124,7 +125,7 @@ describe('bridge', () => {
     expect(await bridgeDeployment.l2Dai.balanceOf(network.l1.deployer.address)).to.be.eq(initialL2Balance) // burn is immediate
   })
 
-  it.only('upgrades bridge using governance spell', async () => {
+  it('upgrades bridge using governance spell', async () => {
     const initialL1Balance = await bridgeDeployment.l1Dai.balanceOf(network.l1.deployer.address)
     const initialEscrowBalance = await bridgeDeployment.l1Dai.balanceOf(bridgeDeployment.l1Escrow.address)
     const initialL2Balance = await bridgeDeployment.l2Dai.balanceOf(network.l1.deployer.address)
@@ -176,13 +177,26 @@ describe('bridge', () => {
 
     // Close L2 bridge V1
     console.log('Executing spell to close L2 Bridge v1 and grant minting permissions to L2 Bridge v2')
-    const calldata = l2UpgradeSpell.interface.encodeFunctionData('upgradeBridge', [
+    const spellCalldata = l2UpgradeSpell.interface.encodeFunctionData('upgradeBridge', [
       bridgeDeployment.l2DaiGateway.address,
       l2DaiGatewayV2.address,
     ])
+    const l2MessageCalldata = bridgeDeployment.l2GovRelay.interface.encodeFunctionData('relay', [
+      l2UpgradeSpell.address,
+      spellCalldata,
+    ])
+    const calldataLength = l2MessageCalldata.length
     const gasPriceBid = await getGasPriceBid(network.l2.provider)
-    const maxSubmissionPrice = await getMaxSubmissionPrice(network.l2.provider, calldata.length + 30)
-    const maxGas = 10000000000
+    const maxSubmissionPrice = await getMaxSubmissionPrice(network.l2.provider, calldataLength)
+    const maxGas = await getMaxGas(
+      network.l2.provider,
+      bridgeDeployment.l1GovRelay.address,
+      bridgeDeployment.l2GovRelay.address,
+      bridgeDeployment.l2GovRelay.address,
+      maxSubmissionPrice,
+      gasPriceBid,
+      l2MessageCalldata,
+    )
     const ethValue = await maxSubmissionPrice.add(gasPriceBid.mul(maxGas))
 
     await network.l1.deployer.sendTransaction({ to: bridgeDeployment.l1GovRelay.address, value: ethValue })
@@ -191,7 +205,7 @@ describe('bridge', () => {
       waitForTx(
         bridgeDeployment.l1GovRelay
           .connect(network.l1.deployer)
-          .relay(l2UpgradeSpell.address, calldata, ethValue, maxGas, gasPriceBid, maxSubmissionPrice),
+          .relay(l2UpgradeSpell.address, spellCalldata, ethValue, maxGas, gasPriceBid, maxSubmissionPrice),
       ),
       network.l1.inbox,
       network.l1.provider,
