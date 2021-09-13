@@ -18,19 +18,19 @@ pragma solidity ^0.6.11;
 import "../arbitrum/ArbSys.sol";
 
 abstract contract L2CrossDomainEnabled {
-  event TxToL1(address indexed _from, address indexed _to, uint256 indexed _id, bytes _data);
+  event TxToL1(address indexed from, address indexed to, uint256 indexed id, bytes data);
 
   function sendTxToL1(
-    uint256 _l1CallValue,
-    address _from,
-    address _to,
-    bytes memory _data
+    address user,
+    address to,
+    bytes memory data
   ) internal returns (uint256) {
-    uint256 _id = ArbSys(address(100)).sendTxToL1{value: _l1CallValue}(_to, _data);
+    // note: this method doesn't support sending ether to L1 together with a call
+    uint256 id = ArbSys(address(100)).sendTxToL1(to, data);
 
-    emit TxToL1(_from, _to, _id, _data);
+    emit TxToL1(user, to, id, data);
 
-    return _id;
+    return id;
   }
 
   modifier onlyL1Counterpart(address l1Counterpart) {
