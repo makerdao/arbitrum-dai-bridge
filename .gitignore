@@ -1,7 +1,6 @@
 node_modules/
-artifacts/
-cache/
-artifacts-l2
+/artifacts/
+/cache/
 typechain
 crytic-export/
 .env

@@ -1133,6 +1133,7 @@ describe('L1DaiGateway', () => {
       'l2Counterpart()',
       'l2Dai()',
       'wards(address)',
+      'counterpartGateway()',
     ])
   })
 

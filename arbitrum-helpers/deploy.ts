@@ -11,6 +11,7 @@ import { assert, Awaited } from 'ts-essentials'
 
 import { delay } from '../test-e2e/RetryProvider'
 import { Dai, L1DaiGateway, L1Escrow, L1GovernanceRelay, L2DaiGateway, L2GovernanceRelay } from '../typechain'
+import { getArbitrumArtifact, getArbitrumArtifactFactory } from './contracts'
 
 export interface NetworkConfig {
   l1: {
@@ -50,7 +51,7 @@ export async function deployRouter(deps: RouterDependencies): Promise<RouterDepl
 
   const l1GatewayRouter = await deployUsingFactoryAndVerify(
     deps.l1.deployer,
-    await ethers.getContractFactory('L1GatewayRouter'),
+    getArbitrumArtifactFactory('L1GatewayRouter'),
     [],
   )
 
@@ -66,7 +67,7 @@ export async function deployRouter(deps: RouterDependencies): Promise<RouterDepl
 
   const l2GatewayRouter = await deployUsingFactoryAndVerify(
     deps.l2.deployer,
-    await ethers.getContractFactory('L2GatewayRouter'),
+    getArbitrumArtifactFactory('L2GatewayRouter'),
     [],
   )
   expect(l2GatewayRouter.address).to.be.eq(futureAddressOfL2GatewayRouter)
@@ -80,8 +81,6 @@ export async function deployRouter(deps: RouterDependencies): Promise<RouterDepl
 }
 
 export async function deployBridge(deps: NetworkConfig, routerDeployment: RouterDeployment) {
-  const l1BlockOfBeginningOfDeployment = await deps.l1.provider.getBlockNumber()
-  const l2BlockOfBeginningOfDeployment = await deps.l2.provider.getBlockNumber()
   // deploy contracts
   const l1Escrow = await deployUsingFactoryAndVerify(deps.l1.deployer, await ethers.getContractFactory('L1Escrow'), [])
   console.log('Deployed l1Escrow at: ', l1Escrow.address)
@@ -132,45 +131,26 @@ export async function deployBridge(deps: NetworkConfig, routerDeployment: Router
   console.log('Setting permissions...')
   await waitForTx(l2Dai.rely(l2DaiGateway.address)) // allow minting/burning from the bridge
   await waitForTx(l2Dai.rely(l2GovRelay.address)) // allow granting new minting rights by the governance
-  await waitForTx(l2Dai.deny(await deps.l2.deployer.getAddress()))
+  // await waitForTx(l2Dai.deny(await deps.l2.deployer.getAddress()))
 
   await waitForTx(l2DaiGateway.rely(l2GovRelay.address)) // allow closing bridge by the governance
-  await waitForTx(l2DaiGateway.deny(await deps.l2.deployer.getAddress()))
+  // await waitForTx(l2DaiGateway.deny(await deps.l2.deployer.getAddress()))
 
   await waitForTx(l1Escrow.approve(deps.l1.dai, l1DaiGateway.address, ethers.constants.MaxUint256)) // allow l1DaiGateway accessing funds from the bridge for withdrawals
   await waitForTx(l1Escrow.rely(deps.l1.makerPauseProxy))
   await waitForTx(l1Escrow.rely(deps.l1.makerESM))
-  await waitForTx(l1Escrow.deny(await deps.l1.deployer.getAddress()))
+  // await waitForTx(l1Escrow.deny(await deps.l1.deployer.getAddress()))
 
   await waitForTx(l1DaiGateway.rely(deps.l1.makerPauseProxy))
   await waitForTx(l1DaiGateway.rely(deps.l1.makerESM))
-  await waitForTx(l1DaiGateway.deny(await deps.l1.deployer.getAddress()))
+  // await waitForTx(l1DaiGateway.deny(await deps.l1.deployer.getAddress()))
 
   await waitForTx(l1GovRelay.rely(deps.l1.makerPauseProxy))
   await waitForTx(l1GovRelay.rely(deps.l1.makerESM))
-  await waitForTx(l1GovRelay.deny(await deps.l1.deployer.getAddress()))
+  // await waitForTx(l1GovRelay.deny(await deps.l1.deployer.getAddress()))
 
-  // @todo: waitForTx should wait till tx is finalized
+  // @todo: waitForTx should wait till txs are finalized
   await delay(5000)
-
-  console.log('Permission sanity checks...')
-  expect(await getActiveWards(l1Escrow, l1BlockOfBeginningOfDeployment)).to.deep.eq([
-    deps.l1.makerPauseProxy,
-    deps.l1.makerESM,
-  ])
-  expect(await getActiveWards(l1DaiGateway, l1BlockOfBeginningOfDeployment)).to.deep.eq([
-    deps.l1.makerPauseProxy,
-    deps.l1.makerESM,
-  ])
-  expect(await getActiveWards(l1GovRelay, l1BlockOfBeginningOfDeployment)).to.deep.eq([
-    deps.l1.makerPauseProxy,
-    deps.l1.makerESM,
-  ])
-  expect(await getActiveWards(l2DaiGateway, l2BlockOfBeginningOfDeployment)).to.deep.eq([l2GovRelay.address])
-  expect(await getActiveWards(l2Dai, l2BlockOfBeginningOfDeployment)).to.deep.eq([
-    l2DaiGateway.address,
-    l2GovRelay.address,
-  ])
 
   return {
     l1DaiGateway,
@@ -181,6 +161,34 @@ export async function deployBridge(deps: NetworkConfig, routerDeployment: Router
     l1GovRelay,
     l2GovRelay,
   }
+}
+
+export async function performSanityChecks(
+  deps: NetworkConfig,
+  bridgeDeployment: BridgeDeployment,
+  l1BlockOfBeginningOfDeployment: number,
+  l2BlockOfBeginningOfDeployment: number,
+) {
+  console.log('Permission sanity checks...')
+  expect(await getActiveWards(bridgeDeployment.l1Escrow, l1BlockOfBeginningOfDeployment)).to.deep.eq([
+    deps.l1.makerPauseProxy,
+    deps.l1.makerESM,
+  ])
+  expect(await getActiveWards(bridgeDeployment.l1DaiGateway, l1BlockOfBeginningOfDeployment)).to.deep.eq([
+    deps.l1.makerPauseProxy,
+    deps.l1.makerESM,
+  ])
+  expect(await getActiveWards(bridgeDeployment.l1GovRelay, l1BlockOfBeginningOfDeployment)).to.deep.eq([
+    deps.l1.makerPauseProxy,
+    deps.l1.makerESM,
+  ])
+  expect(await getActiveWards(bridgeDeployment.l2DaiGateway, l2BlockOfBeginningOfDeployment)).to.deep.eq([
+    bridgeDeployment.l2GovRelay.address,
+  ])
+  expect(await getActiveWards(bridgeDeployment.l2Dai, l2BlockOfBeginningOfDeployment)).to.deep.eq([
+    bridgeDeployment.l2DaiGateway.address,
+    bridgeDeployment.l2GovRelay.address,
+  ])
 }
 
 export async function useStaticDeployment(
@@ -228,12 +236,12 @@ export async function useStaticRouterDeployment(
 
   return {
     l1GatewayRouter: (await ethers.getContractAt(
-      'L1GatewayRouter',
+      getArbitrumArtifact('L1GatewayRouter').abi as any,
       throwIfUndefined(staticConfig.l1GatewayRouter),
       network.l1.deployer,
     )) as any,
     l2GatewayRouter: (await ethers.getContractAt(
-      'L2GatewayRouter',
+      getArbitrumArtifact('L2GatewayRouter').abi as any,
       throwIfUndefined(staticConfig.l2GatewayRouter),
       network.l1.deployer,
     )) as any, // todo types for router

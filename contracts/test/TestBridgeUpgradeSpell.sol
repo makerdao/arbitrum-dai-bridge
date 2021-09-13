@@ -15,26 +15,29 @@
 
 pragma solidity ^0.6.11;
 
-import "./L2CrossDomainEnabled.sol";
+interface BridgeLike {
+  function close() external;
 
-// Receive xchain message from L1 counterpart and execute given spell
+  function l2Dai() external view returns (address);
+}
 
-contract L2GovernanceRelay is L2CrossDomainEnabled {
-  address public immutable l1GovernanceRelay;
+interface AuthLike {
+  function rely(address usr) external;
 
-  constructor(address _l1GovernanceRelay) public {
-    l1GovernanceRelay = _l1GovernanceRelay;
-  }
+  function deny(address usr) external;
+}
 
-  // Allow contract to receive ether
-  receive() external payable {}
+/**
+ * An example spell to transfer from the old bridge to the new one.
+ */
+contract TestBridgeUpgradeSpell {
+  function upgradeBridge(address _oldBridge, address _newBridge) external {
+    BridgeLike oldBridge = BridgeLike(_oldBridge);
+    AuthLike dai = AuthLike(oldBridge.l2Dai());
+    oldBridge.close();
 
-  function relay(address target, bytes calldata targetData)
-    external
-    onlyL1Counterpart(l1GovernanceRelay)
-  {
-    (bool ok, ) = target.delegatecall(targetData);
-    // note: even if a retryable call fails, it can be retried
-    require(ok, "L2GovernanceRelay/delegatecall-error");
+    // note: ususally you wouldn't "deny" right away b/c of async messages
+    dai.deny(_oldBridge);
+    dai.rely(_newBridge);
   }
 }

@@ -1,4 +1,6 @@
-import { ethers } from 'ethers'
+import { ContractFactory, ethers } from 'ethers'
+import { readFileSync } from 'fs'
+import { join } from 'path'
 
 export const arbitrumL2CoreContracts = {
   arbRetryableTx: '0x000000000000000000000000000000000000006E',
@@ -18,4 +20,18 @@ export function getArbitrumCoreContracts(l2: ethers.providers.BaseProvider) {
       l2,
     ),
   }
+}
+
+export function getArbitrumArtifactFactory<T extends ContractFactory>(name: string): T {
+  const artifact = getArbitrumArtifact(name)
+
+  return new ethers.ContractFactory(artifact.abi, artifact.bytecode) as any
+}
+
+export function getArbitrumArtifact(name: string): any {
+  const artifactPath = join(__dirname, './artifacts', `${name}.json`)
+  const artifactRaw = readFileSync(artifactPath, 'utf-8')
+  const artifact = JSON.parse(artifactRaw)
+
+  return artifact
 }

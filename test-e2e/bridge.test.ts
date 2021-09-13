@@ -1,4 +1,10 @@
-import { getOptionalEnv, getRequiredEnv, waitForTx } from '@makerdao/hardhat-utils'
+import {
+  deployUsingFactory,
+  getAddressOfNextDeployedContract,
+  getOptionalEnv,
+  getRequiredEnv,
+  waitForTx,
+} from '@makerdao/hardhat-utils'
 import { expect } from 'chai'
 import { parseUnits } from 'ethers/lib/utils'
 import { ethers } from 'hardhat'
@@ -14,10 +20,19 @@ import {
   useStaticRouterDeployment,
   waitToRelayTxsToL2,
 } from '../arbitrum-helpers'
-import { depositToStandardBridge, depositToStandardRouter, setGatewayForToken } from '../arbitrum-helpers/bridge'
+import {
+  depositToStandardBridge,
+  depositToStandardRouter,
+  getGasPriceBid,
+  getMaxGas,
+  getMaxSubmissionPrice,
+  setGatewayForToken,
+} from '../arbitrum-helpers/bridge'
 import { RetryProvider } from './RetryProvider'
 
-describe.skip('bridge', () => {
+const amount = parseUnits('7', 'ether')
+
+describe('bridge', () => {
   let routerDeployment: RouterDeployment
   let bridgeDeployment: BridgeDeployment
   let network: NetworkConfig
@@ -30,8 +45,6 @@ describe.skip('bridge', () => {
     const initialL1Balance = await bridgeDeployment.l1Dai.balanceOf(network.l1.deployer.address)
     const initialEscrowBalance = await bridgeDeployment.l1Dai.balanceOf(bridgeDeployment.l1Escrow.address)
     const initialL2Balance = await bridgeDeployment.l2Dai.balanceOf(network.l1.deployer.address)
-
-    const amount = parseUnits('7', 'ether')
 
     await waitForTx(bridgeDeployment.l1Dai.approve(bridgeDeployment.l1DaiGateway.address, amount))
 
@@ -75,8 +88,6 @@ describe.skip('bridge', () => {
     const initialEscrowBalance = await bridgeDeployment.l1Dai.balanceOf(bridgeDeployment.l1Escrow.address)
     const initialL2Balance = await bridgeDeployment.l2Dai.balanceOf(network.l1.deployer.address)
 
-    const amount = parseUnits('7', 'ether')
-
     await waitForTx(bridgeDeployment.l1Dai.approve(bridgeDeployment.l1DaiGateway.address, amount))
     await waitToRelayTxsToL2(
       depositToStandardRouter({
@@ -102,6 +113,130 @@ describe.skip('bridge', () => {
 
     await waitForTx(
       bridgeDeployment.l2DaiGateway
+        .connect(network.l2.deployer)
+        ['outboundTransfer(address,address,uint256,bytes)'](
+          bridgeDeployment.l1Dai.address,
+          network.l1.deployer.address,
+          amount,
+          '0x',
+        ),
+    )
+
+    expect(await bridgeDeployment.l2Dai.balanceOf(network.l1.deployer.address)).to.be.eq(initialL2Balance) // burn is immediate
+  })
+
+  it('upgrades bridge using governance spell', async () => {
+    const initialL1Balance = await bridgeDeployment.l1Dai.balanceOf(network.l1.deployer.address)
+    const initialEscrowBalance = await bridgeDeployment.l1Dai.balanceOf(bridgeDeployment.l1Escrow.address)
+    const initialL2Balance = await bridgeDeployment.l2Dai.balanceOf(network.l1.deployer.address)
+
+    const l1DaiGatewayV2FutureAddr = await getAddressOfNextDeployedContract(network.l1.deployer)
+    const l2DaiGatewayV2 = await deployUsingFactory(
+      network.l2.deployer,
+      await ethers.getContractFactory('L2DaiGateway'),
+      [
+        l1DaiGatewayV2FutureAddr,
+        routerDeployment.l2GatewayRouter.address,
+        network.l1.dai,
+        bridgeDeployment.l2Dai.address,
+      ],
+    )
+    console.log('Deployed l2DaiGatewayV2 at: ', l2DaiGatewayV2.address)
+
+    const l1DaiGatewayV2 = await deployUsingFactory(
+      network.l1.deployer,
+      await ethers.getContractFactory('L1DaiGateway'),
+      [
+        l2DaiGatewayV2.address,
+        routerDeployment.l1GatewayRouter.address,
+        network.l1.inbox,
+        network.l1.dai,
+        bridgeDeployment.l2Dai.address,
+        bridgeDeployment.l1Escrow.address,
+      ],
+    )
+    console.log('Deployed l1DaiGatewayV2 at: ', l1DaiGatewayV2.address)
+    expect(l1DaiGatewayV2.address).to.be.eq(
+      l1DaiGatewayV2FutureAddr,
+      "Expected future address of l1DaiGateway doesn't match actual address!",
+    )
+    await waitForTx(
+      bridgeDeployment.l1Escrow.approve(
+        bridgeDeployment.l1Dai.address,
+        l1DaiGatewayV2.address,
+        ethers.constants.MaxUint256,
+      ),
+    )
+
+    const l2UpgradeSpell = await deployUsingFactory(
+      network.l2.deployer,
+      await ethers.getContractFactory('TestBridgeUpgradeSpell'),
+      [],
+    )
+    console.log('L2 Bridge Upgrade Spell: ', l2UpgradeSpell.address)
+
+    // Close L2 bridge V1
+    console.log('Executing spell to close L2 Bridge v1 and grant minting permissions to L2 Bridge v2')
+    const spellCalldata = l2UpgradeSpell.interface.encodeFunctionData('upgradeBridge', [
+      bridgeDeployment.l2DaiGateway.address,
+      l2DaiGatewayV2.address,
+    ])
+    const l2MessageCalldata = bridgeDeployment.l2GovRelay.interface.encodeFunctionData('relay', [
+      l2UpgradeSpell.address,
+      spellCalldata,
+    ])
+    const calldataLength = l2MessageCalldata.length
+    const gasPriceBid = await getGasPriceBid(network.l2.provider)
+    const maxSubmissionPrice = await getMaxSubmissionPrice(network.l2.provider, calldataLength)
+    const maxGas = await getMaxGas(
+      network.l2.provider,
+      bridgeDeployment.l1GovRelay.address,
+      bridgeDeployment.l2GovRelay.address,
+      bridgeDeployment.l2GovRelay.address,
+      maxSubmissionPrice,
+      gasPriceBid,
+      l2MessageCalldata,
+    )
+    const ethValue = await maxSubmissionPrice.add(gasPriceBid.mul(maxGas))
+
+    await network.l1.deployer.sendTransaction({ to: bridgeDeployment.l1GovRelay.address, value: ethValue })
+
+    await waitToRelayTxsToL2(
+      waitForTx(
+        bridgeDeployment.l1GovRelay
+          .connect(network.l1.deployer)
+          .relay(l2UpgradeSpell.address, spellCalldata, ethValue, maxGas, gasPriceBid, maxSubmissionPrice),
+      ),
+      network.l1.inbox,
+      network.l1.provider,
+      network.l2.provider,
+    )
+    console.log('Bridge upgraded!')
+
+    await waitForTx(bridgeDeployment.l1Dai.approve(l1DaiGatewayV2.address, amount))
+    await waitToRelayTxsToL2(
+      depositToStandardBridge({
+        l2Provider: network.l2.provider,
+        from: network.l1.deployer,
+        to: network.l1.deployer.address,
+        l1Gateway: l1DaiGatewayV2,
+        l1TokenAddress: bridgeDeployment.l1Dai.address,
+        l2GatewayAddress: l2DaiGatewayV2.address,
+        deposit: amount,
+      }),
+      network.l1.inbox,
+      network.l1.provider,
+      network.l2.provider,
+    )
+
+    expect(await bridgeDeployment.l1Dai.balanceOf(network.l1.deployer.address)).to.be.eq(initialL1Balance.sub(amount))
+    expect(await bridgeDeployment.l1Dai.balanceOf(bridgeDeployment.l1Escrow.address)).to.be.eq(
+      initialEscrowBalance.add(amount),
+    )
+    expect(await bridgeDeployment.l2Dai.balanceOf(network.l1.deployer.address)).to.be.eq(initialL2Balance.add(amount))
+
+    await waitForTx(
+      l2DaiGatewayV2
         .connect(network.l2.deployer)
         ['outboundTransfer(address,address,uint256,bytes)'](
           bridgeDeployment.l1Dai.address,

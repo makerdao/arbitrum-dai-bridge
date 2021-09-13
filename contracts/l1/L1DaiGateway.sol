@@ -109,7 +109,6 @@ contract L1DaiGateway is L1CrossDomainEnabled, L1ITokenGateway {
       seqNum = sendTxToL2(
         l2Counterpart,
         from,
-        0,
         maxSubmissionCost,
         maxGas,
         gasPriceBid,
@@ -184,5 +183,9 @@ contract L1DaiGateway is L1CrossDomainEnabled, L1ITokenGateway {
     }
 
     return l2Dai;
+  }
+
+  function counterpartGateway() external view override returns (address) {
+    return l2Counterpart;
   }
 }

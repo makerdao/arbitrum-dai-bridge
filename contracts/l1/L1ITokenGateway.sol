@@ -54,4 +54,7 @@ interface L1ITokenGateway {
 
   // if token is not supported this should return 0x0 address
   function calculateL2TokenAddress(address l1Token) external view returns (address);
+
+  // used by router
+  function counterpartGateway() external view returns (address);
 }

@@ -18,7 +18,7 @@ pragma solidity ^0.6.11;
 import "../arbitrum/IInbox.sol";
 import "../arbitrum/IOutbox.sol";
 
-contract L1CrossDomainEnabled {
+abstract contract L1CrossDomainEnabled {
   address public immutable inbox;
 
   event TxToL2(address indexed from, address indexed to, uint256 indexed seqNum, bytes data);
@@ -48,42 +48,40 @@ contract L1CrossDomainEnabled {
     return l2ToL1Sender;
   }
 
-  // assumes that l1CallValue = msg.value
   function sendTxToL2(
     address target,
     address user,
-    uint256 l2CallValue,
     uint256 maxSubmissionCost,
     uint256 maxGas,
     uint256 gasPriceBid,
     bytes memory data
   ) internal returns (uint256) {
-    return
-      sendTxToL2(
-        target,
-        user,
-        msg.value,
-        l2CallValue,
-        maxSubmissionCost,
-        maxGas,
-        gasPriceBid,
-        data
-      );
+    uint256 seqNum = IInbox(inbox).createRetryableTicket{value: msg.value}(
+      target,
+      0, // we always assume that l2CallValue = 9
+      maxSubmissionCost,
+      user,
+      user,
+      maxGas,
+      gasPriceBid,
+      data
+    );
+    emit TxToL2(user, target, seqNum, data);
+    return seqNum;
   }
 
-  function sendTxToL2(
+  function sendTxToL2NoAliassing(
     address target,
     address user,
     uint256 l1CallValue,
-    uint256 l2CallValue,
     uint256 maxSubmissionCost,
     uint256 maxGas,
     uint256 gasPriceBid,
     bytes memory data
   ) internal returns (uint256) {
-    uint256 seqNum = IInbox(inbox).createRetryableTicket{value: l1CallValue}(
+    uint256 seqNum = IInbox(inbox).createRetryableTicketNoRefundAliasRewrite{value: l1CallValue}(
       target,
-      l2CallValue,
+      0, // we always assume that l2CallValue = 9
       maxSubmissionCost,
       user,
       user,
