@@ -83,7 +83,6 @@ contract L1GovernanceRelay is L1CrossDomainEnabled {
       l2GovernanceRelay,
       l2GovernanceRelay, // send any excess ether to the L2 counterpart
       l1CallValue,
-      0,
       maxSubmissionCost,
       maxGas,
       gasPriceBid,
