@@ -26,6 +26,9 @@ contract L2GovernanceRelay is L2CrossDomainEnabled {
     l1GovernanceRelay = _l1GovernanceRelay;
   }
 
+  // Allow contract to receive ether
+  receive() external payable {}
+
   function relay(address target, bytes calldata targetData)
     external
     onlyL1Counterpart(l1GovernanceRelay)

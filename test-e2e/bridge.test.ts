@@ -24,7 +24,6 @@ import {
   depositToStandardBridge,
   depositToStandardRouter,
   getGasPriceBid,
-  getMaxGas,
   getMaxSubmissionPrice,
   setGatewayForToken,
 } from '../arbitrum-helpers/bridge'

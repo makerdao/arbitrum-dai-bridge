@@ -37,14 +37,14 @@ describe('L1GovernanceRelay', () => {
         .relay(l2spell.address, [], defaultEthValue, MAX_GAS, GAS_PRICE_BID, MAX_SUBMISSION_COST, {
           value: defaultEthValue,
         })
-      const inboxCall = inboxMock.smocked.createRetryableTicket.calls[0]
+      const inboxCall = inboxMock.smocked.createRetryableTicketNoRefundAliasRewrite.calls[0]
 
       expect(await deployer.provider?.getBalance(inboxMock.address)).to.equal(defaultEthValue)
       expect(inboxCall.destAddr).to.equal(l2GovernanceRelay.address)
       expect(inboxCall.l2CallValue).to.equal(0)
       expect(inboxCall.maxSubmissionCost).to.equal(MAX_SUBMISSION_COST)
-      expect(inboxCall.excessFeeRefundAddress).to.equal(deployer.address)
-      expect(inboxCall.callValueRefundAddress).to.equal(deployer.address)
+      expect(inboxCall.excessFeeRefundAddress).to.equal(l2GovernanceRelay.address)
+      expect(inboxCall.callValueRefundAddress).to.equal(l2GovernanceRelay.address)
       expect(inboxCall.maxGas).to.equal(MAX_GAS)
       expect(inboxCall.gasPriceBid).to.equal(GAS_PRICE_BID)
       expect(inboxCall.data).to.equal(
@@ -62,14 +62,14 @@ describe('L1GovernanceRelay', () => {
       await l1GovernanceRelay
         .connect(deployer)
         .relay(l2spell.address, [], defaultEthValue, MAX_GAS, GAS_PRICE_BID, MAX_SUBMISSION_COST)
-      const inboxCall = inboxMock.smocked.createRetryableTicket.calls[0]
+      const inboxCall = inboxMock.smocked.createRetryableTicketNoRefundAliasRewrite.calls[0]
 
       expect(await deployer.provider?.getBalance(inboxMock.address)).to.equal(defaultEthValue)
       expect(inboxCall.destAddr).to.equal(l2GovernanceRelay.address)
       expect(inboxCall.l2CallValue).to.equal(0)
       expect(inboxCall.maxSubmissionCost).to.equal(MAX_SUBMISSION_COST)
-      expect(inboxCall.excessFeeRefundAddress).to.equal(deployer.address)
-      expect(inboxCall.callValueRefundAddress).to.equal(deployer.address)
+      expect(inboxCall.excessFeeRefundAddress).to.equal(l2GovernanceRelay.address)
+      expect(inboxCall.callValueRefundAddress).to.equal(l2GovernanceRelay.address)
       expect(inboxCall.maxGas).to.equal(MAX_GAS)
       expect(inboxCall.gasPriceBid).to.equal(GAS_PRICE_BID)
       expect(inboxCall.data).to.equal(

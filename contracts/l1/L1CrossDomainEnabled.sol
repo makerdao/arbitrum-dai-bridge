@@ -94,4 +94,28 @@ abstract contract L1CrossDomainEnabled {
     emit TxToL2(user, target, seqNum, data);
     return seqNum;
   }
+
+  function sendTxToL2NoAliassing(
+    address target,
+    address user,
+    uint256 l1CallValue,
+    uint256 l2CallValue,
+    uint256 maxSubmissionCost,
+    uint256 maxGas,
+    uint256 gasPriceBid,
+    bytes memory data
+  ) internal returns (uint256) {
+    uint256 seqNum = IInbox(inbox).createRetryableTicketNoRefundAliasRewrite{value: l1CallValue}(
+      target,
+      l2CallValue,
+      maxSubmissionCost,
+      user,
+      user,
+      maxGas,
+      gasPriceBid,
+      data
+    );
+    emit TxToL2(user, target, seqNum, data);
+    return seqNum;
+  }
 }
