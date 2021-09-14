@@ -1,15 +1,10 @@
-import {
-  deployUsingFactoryAndVerify,
-  getActiveWards,
-  getAddressOfNextDeployedContract,
-  waitForTx,
-} from '@makerdao/hardhat-utils'
+import { deployUsingFactoryAndVerify, getActiveWards, getAddressOfNextDeployedContract } from '@makerdao/hardhat-utils'
 import { expect } from 'chai'
 import { providers, Signer, Wallet } from 'ethers'
 import { ethers } from 'hardhat'
 import { assert, Awaited } from 'ts-essentials'
 
-import { delay } from '../test-e2e/RetryProvider'
+import { waitForTx } from '../arbitrum-helpers'
 import { Dai, L1DaiGateway, L1Escrow, L1GovernanceRelay, L2DaiGateway, L2GovernanceRelay } from '../typechain'
 import { getArbitrumArtifact, getArbitrumArtifactFactory } from './contracts'
 
@@ -131,26 +126,18 @@ export async function deployBridge(deps: NetworkConfig, routerDeployment: Router
   console.log('Setting permissions...')
   await waitForTx(l2Dai.rely(l2DaiGateway.address)) // allow minting/burning from the bridge
   await waitForTx(l2Dai.rely(l2GovRelay.address)) // allow granting new minting rights by the governance
-  // await waitForTx(l2Dai.deny(await deps.l2.deployer.getAddress()))
 
   await waitForTx(l2DaiGateway.rely(l2GovRelay.address)) // allow closing bridge by the governance
-  // await waitForTx(l2DaiGateway.deny(await deps.l2.deployer.getAddress()))
 
   await waitForTx(l1Escrow.approve(deps.l1.dai, l1DaiGateway.address, ethers.constants.MaxUint256)) // allow l1DaiGateway accessing funds from the bridge for withdrawals
   await waitForTx(l1Escrow.rely(deps.l1.makerPauseProxy))
   await waitForTx(l1Escrow.rely(deps.l1.makerESM))
-  // await waitForTx(l1Escrow.deny(await deps.l1.deployer.getAddress()))
 
   await waitForTx(l1DaiGateway.rely(deps.l1.makerPauseProxy))
   await waitForTx(l1DaiGateway.rely(deps.l1.makerESM))
-  // await waitForTx(l1DaiGateway.deny(await deps.l1.deployer.getAddress()))
 
   await waitForTx(l1GovRelay.rely(deps.l1.makerPauseProxy))
   await waitForTx(l1GovRelay.rely(deps.l1.makerESM))
-  // await waitForTx(l1GovRelay.deny(await deps.l1.deployer.getAddress()))
-
-  // @todo: waitForTx should wait till txs are finalized
-  await delay(5000)
 
   return {
     l1DaiGateway,

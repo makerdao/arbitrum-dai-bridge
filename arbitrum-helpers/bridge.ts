@@ -1,7 +1,7 @@
-import { waitForTx } from '@makerdao/hardhat-utils'
 import { BigNumber, ethers, Wallet } from 'ethers'
 import { defaultAbiCoder } from 'ethers/lib/utils'
 
+import { waitForTx } from '../arbitrum-helpers'
 import { L1DaiGateway } from '../typechain'
 import { getArbitrumCoreContracts } from './contracts'
 
