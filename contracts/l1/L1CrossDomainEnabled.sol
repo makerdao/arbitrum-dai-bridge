@@ -49,7 +49,7 @@ abstract contract L1CrossDomainEnabled {
   ) internal returns (uint256) {
     uint256 seqNum = inbox.createRetryableTicket{value: msg.value}(
       target,
-      0, // we always assume that l2CallValue = 9
+      0, // we always assume that l2CallValue = 0
       maxSubmissionCost,
       user,
       user,
@@ -61,7 +61,7 @@ abstract contract L1CrossDomainEnabled {
     return seqNum;
   }
 
-  function sendTxToL2NoAliassing(
+  function sendTxToL2NoAliasing(
     address target,
     address user,
     uint256 l1CallValue,

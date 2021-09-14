@@ -79,7 +79,7 @@ contract L1GovernanceRelay is L1CrossDomainEnabled {
       targetData
     );
 
-    sendTxToL2NoAliassing(
+    sendTxToL2NoAliasing(
       l2GovernanceRelay,
       l2GovernanceRelay, // send any excess ether to the L2 counterpart
       l1CallValue,
