@@ -260,11 +260,13 @@ export async function setupTest() {
   let bridgeDeployment: BridgeDeployment
   let routerDeployment: RouterDeployment
 
-  const staticDeployment = getOptionalEnv('E2E_TESTS_DEPLOYMENT')
-  if (staticDeployment) {
+  // this is a mechanism to reuse old deployment -- speeds up development
+  const staticDeploymentString = getOptionalEnv('E2E_TESTS_DEPLOYMENT')
+  if (staticDeploymentString) {
     console.log('Using static deployment...')
-    routerDeployment = await useStaticRouterDeployment(network, staticDeployment)
-    bridgeDeployment = await useStaticDeployment(network, staticDeployment)
+    const deployment = JSON.parse(staticDeploymentString)
+    routerDeployment = await useStaticRouterDeployment(network, deployment)
+    bridgeDeployment = await useStaticDeployment(network, deployment)
   } else {
     routerDeployment = await deployRouter(network)
     bridgeDeployment = await deployBridge(network, routerDeployment)

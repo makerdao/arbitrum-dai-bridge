@@ -78,7 +78,18 @@ export async function deployRouter(deps: RouterDependencies): Promise<RouterDepl
 }
 
 // @note: by default the deployment won't be fully secured -- deployer won't be denied
-export async function deployBridge(deps: NetworkConfig, routerDeployment: RouterDeployment) {
+export async function deployBridge(
+  deps: NetworkConfig,
+  routerDeployment: RouterDeployment,
+  desiredL2DaiAddress?: string,
+) {
+  if (desiredL2DaiAddress) {
+    const nextAddress = await getAddressOfNextDeployedContract(deps.l2.deployer)
+    expect(nextAddress.toLowerCase()).to.be.eq(
+      desiredL2DaiAddress.toLowerCase(),
+      'Expected L2DAI address doesnt match with address that will be deployed',
+    )
+  }
   // deploy contracts
   const l1Escrow = await deployUsingFactoryAndVerify(deps.l1.deployer, await ethers.getContractFactory('L1Escrow'), [])
   console.log('Deployed l1Escrow at: ', l1Escrow.address)
@@ -197,39 +208,53 @@ export async function performSanityChecks(
   expect(await bridgeDeployment.l1GovRelay.l2GovernanceRelay()).to.be.eq(bridgeDeployment.l2GovRelay.address)
   expect(await bridgeDeployment.l1GovRelay.inbox()).to.be.eq(await bridgeDeployment.l1DaiGateway.inbox())
 }
+export async function denyDeployer(deps: NetworkConfig, bridgeDeployment: BridgeDeployment) {
+  console.log('Denying deployer access')
+  await waitForTx(bridgeDeployment.l2Dai.deny(await deps.l2.deployer.getAddress()))
+  await waitForTx(bridgeDeployment.l2DaiGateway.deny(await deps.l2.deployer.getAddress()))
+  await waitForTx(bridgeDeployment.l1Escrow.deny(await deps.l1.deployer.getAddress()))
+  await waitForTx(bridgeDeployment.l1DaiGateway.deny(await deps.l1.deployer.getAddress()))
+  await waitForTx(bridgeDeployment.l1GovRelay.deny(await deps.l1.deployer.getAddress()))
+}
 
 export async function useStaticDeployment(
   network: NetworkConfig,
-  staticConfigString: string,
+  addresses: {
+    l1DaiGateway: string
+    l1Escrow: string
+    l2Dai: string
+    l2DaiGateway: string
+    l1Dai: string
+    l1GovRelay: string
+    l2GovRelay: string
+  },
 ): ReturnType<typeof deployBridge> {
-  const staticConfig = JSON.parse(staticConfigString)
-
   return {
     l1DaiGateway: (await ethers.getContractAt(
       'L1DaiGateway',
-      throwIfUndefined(staticConfig.l1DaiGateway),
+      throwIfUndefined(addresses.l1DaiGateway),
       network.l1.deployer,
     )) as L1DaiGateway,
     l1Escrow: (await ethers.getContractAt(
       'L1Escrow',
-      throwIfUndefined(staticConfig.l1Escrow),
+      throwIfUndefined(addresses.l1Escrow),
       network.l1.deployer,
     )) as L1Escrow,
-    l2Dai: (await ethers.getContractAt('Dai', throwIfUndefined(staticConfig.l2Dai), network.l2.deployer)) as Dai,
+    l2Dai: (await ethers.getContractAt('Dai', throwIfUndefined(addresses.l2Dai), network.l2.deployer)) as Dai,
     l2DaiGateway: (await ethers.getContractAt(
       'L2DaiGateway',
-      throwIfUndefined(staticConfig.l2DaiGateway),
+      throwIfUndefined(addresses.l2DaiGateway),
       network.l2.deployer,
     )) as L2DaiGateway,
-    l1Dai: (await ethers.getContractAt('Dai', throwIfUndefined(staticConfig.l1Dai), network.l1.deployer)) as Dai,
+    l1Dai: (await ethers.getContractAt('Dai', throwIfUndefined(addresses.l1Dai), network.l1.deployer)) as Dai,
     l1GovRelay: (await ethers.getContractAt(
       'L1GovernanceRelay',
-      throwIfUndefined(staticConfig.l1GovRelay),
+      throwIfUndefined(addresses.l1GovRelay),
       network.l1.deployer,
     )) as L1GovernanceRelay,
     l2GovRelay: (await ethers.getContractAt(
       'L2GovernanceRelay',
-      throwIfUndefined(staticConfig.l2GovRelay),
+      throwIfUndefined(addresses.l2GovRelay),
       network.l2.deployer,
     )) as L2GovernanceRelay,
   }
@@ -237,19 +262,20 @@ export async function useStaticDeployment(
 
 export async function useStaticRouterDeployment(
   network: NetworkConfig,
-  staticConfigString: string,
+  addresses: {
+    l1GatewayRouter: string
+    l2GatewayRouter: string
+  },
 ): ReturnType<typeof deployRouter> {
-  const staticConfig = JSON.parse(staticConfigString)
-
   return {
     l1GatewayRouter: (await ethers.getContractAt(
       getArbitrumArtifact('L1GatewayRouter').abi as any,
-      throwIfUndefined(staticConfig.l1GatewayRouter),
+      throwIfUndefined(addresses.l1GatewayRouter),
       network.l1.deployer,
     )) as any,
     l2GatewayRouter: (await ethers.getContractAt(
       getArbitrumArtifact('L2GatewayRouter').abi as any,
-      throwIfUndefined(staticConfig.l2GatewayRouter),
+      throwIfUndefined(addresses.l2GatewayRouter),
       network.l1.deployer,
     )) as any, // todo types for router
   }

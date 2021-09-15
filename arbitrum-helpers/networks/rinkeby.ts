@@ -1,8 +1,7 @@
 import { assert } from 'console'
 import { ethers } from 'hardhat'
 
-import { NetworkConfig } from '..'
-import { useExternalRouterDeployment } from './common'
+import { NetworkConfig, useStaticRouterDeployment } from '..'
 import { RetryProvider } from './RetryProvider'
 
 export async function getRinkebyNetworkConfig({
@@ -39,7 +38,7 @@ export async function getRinkebyNetworkConfig({
 }
 
 export async function getRinkebyRouterDeployment(network: NetworkConfig) {
-  return await useExternalRouterDeployment(network, {
+  return await useStaticRouterDeployment(network, {
     l1GatewayRouter: '0x70C143928eCfFaf9F5b406f7f4fC28Dc43d68380',
     l2GatewayRouter: '0x9413AD42910c1eA60c737dB5f58d1C504498a3cD',
   })
