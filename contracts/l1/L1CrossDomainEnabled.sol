@@ -15,35 +15,29 @@
 
 pragma solidity ^0.6.11;
 
+import "../arbitrum/IBridge.sol";
 import "../arbitrum/IInbox.sol";
 import "../arbitrum/IOutbox.sol";
 
 abstract contract L1CrossDomainEnabled {
-  address public immutable inbox;
+  IInbox public immutable inbox;
 
   event TxToL2(address indexed from, address indexed to, uint256 indexed seqNum, bytes data);
 
   constructor(address _inbox) public {
-    inbox = _inbox;
+    inbox = IInbox(_inbox);
   }
 
   modifier onlyL2Counterpart(address l2Counterpart) {
     // a message coming from the counterpart gateway was executed by the bridge
-    address bridge = address(IInbox(inbox).bridge());
+    address bridge = inbox.bridge();
     require(msg.sender == bridge, "NOT_FROM_BRIDGE");
 
     // and the outbox reports that the L2 address of the sender is the counterpart gateway
-    address l2ToL1Sender = getL2ToL1Sender(bridge);
+    address l2ToL1Sender = IOutbox(IBridge(bridge).activeOutbox()).l2ToL1Sender();
+    require(l2ToL1Sender != address(0), "NO_SENDER");
     require(l2ToL1Sender == l2Counterpart, "ONLY_COUNTERPART_GATEWAY");
     _;
-  }
-
-  function getL2ToL1Sender(address _bridge) internal view returns (address) {
-    IOutbox outbox = IOutbox(IBridge(_bridge).activeOutbox());
-    address l2ToL1Sender = outbox.l2ToL1Sender();
-
-    require(l2ToL1Sender != address(0), "NO_SENDER");
-    return l2ToL1Sender;
   }
 
   function sendTxToL2(
@@ -54,7 +48,7 @@ abstract contract L1CrossDomainEnabled {
     uint256 gasPriceBid,
     bytes memory data
   ) internal returns (uint256) {
-    uint256 seqNum = IInbox(inbox).createRetryableTicket{value: msg.value}(
+    uint256 seqNum = inbox.createRetryableTicket{value: msg.value}(
       target,
       0, // we always assume that l2CallValue = 9
       maxSubmissionCost,
@@ -77,7 +71,7 @@ abstract contract L1CrossDomainEnabled {
     uint256 gasPriceBid,
     bytes memory data
   ) internal returns (uint256) {
-    uint256 seqNum = IInbox(inbox).createRetryableTicketNoRefundAliasRewrite{value: l1CallValue}(
+    uint256 seqNum = inbox.createRetryableTicketNoRefundAliasRewrite{value: l1CallValue}(
       target,
       0, // we always assume that l2CallValue = 9
       maxSubmissionCost,

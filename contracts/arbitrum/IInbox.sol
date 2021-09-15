@@ -18,7 +18,6 @@
 
 pragma solidity ^0.6.11;
 
-import "./IBridge.sol";
 import "./IMessageProvider.sol";
 
 interface IInbox is IMessageProvider {
@@ -80,7 +79,7 @@ interface IInbox is IMessageProvider {
 
   function depositEth(uint256 maxSubmissionCost) external payable returns (uint256);
 
-  function bridge() external view returns (IBridge);
+  function bridge() external view returns (address);
 
   function pauseCreateRetryables() external;
 
