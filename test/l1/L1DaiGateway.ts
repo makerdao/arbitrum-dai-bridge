@@ -27,6 +27,7 @@ const errorMessages = {
   notExpectedSender: 'NOT_EXPECTED_SENDER',
   transferHookFail: 'TRANSFER_HOOK_FAIL',
   exitToNotAContract: 'TO_NOT_CONTRACT',
+  notFromBridge: 'NOT_FROM_BRIDGE',
 }
 
 describe('L1DaiGateway', () => {
@@ -361,67 +362,6 @@ describe('L1DaiGateway', () => {
 
     // todo: test revert when calldata !=  0
 
-    describe.skip('[SKIP BUG] calls receiver contract', () => {
-      const callHookData = ethers.utils.defaultAbiCoder.encode(['uint256'], [42])
-      const defaultWithdrawData = ethers.utils.defaultAbiCoder.encode(
-        ['uint256', 'bytes'],
-        [expectedTransferId, callHookData],
-      )
-
-      it('calls receiver contract when callHookData is present', async () => {
-        const [
-          _deployer,
-          inboxImpersonator,
-          l1EscrowEOA,
-          l2DaiGatewayEOA,
-          routerEOA,
-          bridgeImpersonator,
-          outboxImpersonator,
-          sender,
-        ] = await ethers.getSigners()
-        const { l1Dai, outboxMock, l1DaiGateway } = await setupWithdrawalTest({
-          inboxImpersonator,
-          l1Escrow: l1EscrowEOA,
-          l2DaiGateway: l2DaiGatewayEOA,
-          router: routerEOA,
-          user1: sender,
-          bridgeImpersonator,
-          outboxImpersonator,
-        })
-        outboxMock.smocked.l2ToL1Sender.will.return.with(() => l2DaiGatewayEOA.address)
-        const receiverMock = await deployArbitrumContractMock('IERC677Receiver')
-        receiverMock.smocked.onTokenTransfer.will.return.with()
-
-        const finalizeWithdrawalTx = await l1DaiGateway
-          .connect(outboxImpersonator)
-          .finalizeInboundTransfer(
-            l1Dai.address,
-            sender.address,
-            receiverMock.address,
-            withdrawAmount,
-            defaultWithdrawData,
-          )
-        const onWithdrawalMessengerCall = receiverMock.smocked.onTokenTransfer.calls[0]
-
-        expect(await l1Dai.balanceOf(sender.address)).to.be.equal(0)
-        expect(await l1Dai.balanceOf(receiverMock.address)).to.be.equal(withdrawAmount)
-        expect(await l1Dai.balanceOf(l1EscrowEOA.address)).to.be.equal(initialTotalL1Supply - withdrawAmount)
-        expect(onWithdrawalMessengerCall._sender).to.be.eq(sender.address)
-        expect(onWithdrawalMessengerCall._value).to.be.eq(withdrawAmount)
-        expect(onWithdrawalMessengerCall.data).to.be.eq(callHookData)
-        await expect(finalizeWithdrawalTx)
-          .to.emit(l1DaiGateway, 'WithdrawalFinalized')
-          .withArgs(l1Dai.address, sender.address, receiverMock.address, expectedTransferId, withdrawAmount)
-        await expect(finalizeWithdrawalTx)
-          .to.emit(l1DaiGateway, 'TransferAndCallTriggered')
-          .withArgs(true, sender.address, receiverMock.address, withdrawAmount, callHookData)
-      })
-
-      it('doesnt revert when receiver contract return false')
-      it('doesnt revert when receiver contract reverts')
-      it('reverts when receiver address is not a contract')
-    })
-
     // pending withdrawals MUST success even if bridge is closed
     it('completes withdrawals even when closed', async () => {
       const [
@@ -457,8 +397,7 @@ describe('L1DaiGateway', () => {
         .withArgs(l1Dai.address, user1.address, user1.address, expectedTransferId, withdrawAmount)
     })
 
-    // this is not easy to implement in the current implementation
-    it.skip('[SKIP BUG] reverts when called with a different token', async () => {
+    it('reverts when called with a different token', async () => {
       const [
         _deployer,
         inboxImpersonator,
@@ -480,13 +419,14 @@ describe('L1DaiGateway', () => {
       })
       outboxMock.smocked.l2ToL1Sender.will.return.with(() => l2DaiGatewayEOA.address)
 
-      // this should revert
-      await l1DaiGateway
-        .connect(bridgeImpersonator)
-        .finalizeInboundTransfer(l2Dai.address, user1.address, user1.address, withdrawAmount, defaultWithdrawData)
+      await expect(
+        l1DaiGateway
+          .connect(bridgeImpersonator)
+          .finalizeInboundTransfer(l2Dai.address, user1.address, user1.address, withdrawAmount, defaultWithdrawData),
+      ).to.be.revertedWith(errorMessages.tokenMismatch)
     })
 
-    it.skip('[SKIP BUG] reverts when called not by the outbox', async () => {
+    it('reverts when called not by the outbox', async () => {
       const [
         _deployer,
         inboxImpersonator,
@@ -516,7 +456,7 @@ describe('L1DaiGateway', () => {
           withdrawAmount,
           defaultWithdrawData,
         ),
-      ).to.be.revertedWith('wrong caller!')
+      ).to.be.revertedWith(errorMessages.notFromBridge)
     })
 
     it('reverts when called by the outbox but not relying message from l2 counterpart', async () => {
@@ -548,448 +488,6 @@ describe('L1DaiGateway', () => {
           .finalizeInboundTransfer(l1Dai.address, user1.address, user1.address, withdrawAmount, defaultWithdrawData),
       ).to.be.revertedWith(errorMessages.l2CounterpartMismatch)
     })
-  })
-
-  describe.skip('transferExitAndCall', () => {
-    // const withdrawAmount = 100
-    // const expectedTransferId = 1
-    // const defaultWithdrawData = ethers.utils.defaultAbiCoder.encode(['uint256', 'bytes'], [expectedTransferId, '0x'])
-    // it('transfers exit and calls external contract', async () => {
-    //   const [
-    //     _deployer,
-    //     inboxImpersonator,
-    //     l1EscrowEOA,
-    //     l2DaiGatewayEOA,
-    //     routerEOA,
-    //     bridgeImpersonator,
-    //     outboxImpersonator,
-    //     user1,
-    //   ] = await ethers.getSigners()
-    //   const { l1Dai, outboxMock, l1DaiGateway } = await setupWithdrawalTest({
-    //     inboxImpersonator,
-    //     l1Escrow: l1EscrowEOA,
-    //     l2DaiGateway: l2DaiGatewayEOA,
-    //     router: routerEOA,
-    //     user1,
-    //     bridgeImpersonator,
-    //     outboxImpersonator,
-    //   })
-    //   const exitReceiverMock = await deployArbitrumContractMock('ITradeableExitReceiver')
-    //   exitReceiverMock.smocked.onExitTransfer.will.return.with(true)
-    //   const transferExitTx = await l1DaiGateway
-    //     .connect(user1)
-    //     .transferExitAndCall(
-    //       expectedTransferId,
-    //       user1.address,
-    //       exitReceiverMock.address,
-    //       defaultWithdrawData,
-    //       defaultWithdrawData,
-    //     )
-    //   const onExitTransferMessengerCall = exitReceiverMock.smocked.onExitTransfer.calls[0]
-    //   expect(onExitTransferMessengerCall.exitNum).to.be.eq(expectedTransferId)
-    //   expect(onExitTransferMessengerCall.sender).to.be.eq(user1.address)
-    //   expect(onExitTransferMessengerCall.data).to.be.eq(defaultWithdrawData)
-    //   await expect(transferExitTx)
-    //     .to.emit(l1DaiGateway, 'WithdrawRedirected')
-    //     .withArgs(
-    //       user1.address,
-    //       exitReceiverMock.address,
-    //       expectedTransferId,
-    //       defaultWithdrawData,
-    //       defaultWithdrawData,
-    //       true,
-    //     )
-    //   outboxMock.smocked.l2ToL1Sender.will.return.with(() => l2DaiGatewayEOA.address)
-    //   // it should withdraw funds not to user1 but to exitReceiverMock
-    //   await l1DaiGateway
-    //     .connect(bridgeImpersonator)
-    //     .finalizeInboundTransfer(l1Dai.address, user1.address, user1.address, withdrawAmount, defaultWithdrawData)
-    //   expect(await l1Dai.balanceOf(user1.address)).to.be.equal(0)
-    //   expect(await l1Dai.balanceOf(exitReceiverMock.address)).to.be.equal(withdrawAmount)
-    //   expect(await l1Dai.balanceOf(l1EscrowEOA.address)).to.be.equal(initialTotalL1Supply - withdrawAmount)
-    // })
-    // it('transfers exit and calls external contract when closed', async () => {
-    //   const [
-    //     _deployer,
-    //     inboxImpersonator,
-    //     l1EscrowEOA,
-    //     l2DaiGatewayEOA,
-    //     routerEOA,
-    //     bridgeImpersonator,
-    //     outboxImpersonator,
-    //     user1,
-    //   ] = await ethers.getSigners()
-    //   const { l1Dai, outboxMock, l1DaiGateway } = await setupWithdrawalTest({
-    //     inboxImpersonator,
-    //     l1Escrow: l1EscrowEOA,
-    //     l2DaiGateway: l2DaiGatewayEOA,
-    //     router: routerEOA,
-    //     user1,
-    //     bridgeImpersonator,
-    //     outboxImpersonator,
-    //   })
-    //   const exitReceiverMock = await deployArbitrumContractMock('ITradeableExitReceiver')
-    //   exitReceiverMock.smocked.onExitTransfer.will.return.with(true)
-    //   await l1DaiGateway.close()
-    //   const transferExitTx = await l1DaiGateway
-    //     .connect(user1)
-    //     .transferExitAndCall(
-    //       expectedTransferId,
-    //       user1.address,
-    //       exitReceiverMock.address,
-    //       defaultWithdrawData,
-    //       defaultWithdrawData,
-    //     )
-    //   const onExitTransferMessengerCall = exitReceiverMock.smocked.onExitTransfer.calls[0]
-    //   expect(onExitTransferMessengerCall.exitNum).to.be.eq(expectedTransferId)
-    //   expect(onExitTransferMessengerCall.sender).to.be.eq(user1.address)
-    //   expect(onExitTransferMessengerCall.data).to.be.eq(defaultWithdrawData)
-    //   await expect(transferExitTx)
-    //     .to.emit(l1DaiGateway, 'WithdrawRedirected')
-    //     .withArgs(
-    //       user1.address,
-    //       exitReceiverMock.address,
-    //       expectedTransferId,
-    //       defaultWithdrawData,
-    //       defaultWithdrawData,
-    //       true,
-    //     )
-    //   outboxMock.smocked.l2ToL1Sender.will.return.with(() => l2DaiGatewayEOA.address)
-    //   // it should withdraw funds not to user1 but to exitReceiverMock
-    //   await l1DaiGateway
-    //     .connect(bridgeImpersonator)
-    //     .finalizeInboundTransfer(l1Dai.address, user1.address, user1.address, withdrawAmount, defaultWithdrawData)
-    //   expect(await l1Dai.balanceOf(user1.address)).to.be.equal(0)
-    //   expect(await l1Dai.balanceOf(exitReceiverMock.address)).to.be.equal(withdrawAmount)
-    //   expect(await l1Dai.balanceOf(l1EscrowEOA.address)).to.be.equal(initialTotalL1Supply - withdrawAmount)
-    // })
-    // it('transfers exit and calls external contract when withdrawing', async () => {
-    //   const [
-    //     _deployer,
-    //     inboxImpersonator,
-    //     l1EscrowEOA,
-    //     l2DaiGatewayEOA,
-    //     routerEOA,
-    //     bridgeImpersonator,
-    //     outboxImpersonator,
-    //     user1,
-    //   ] = await ethers.getSigners()
-    //   const { l1Dai, outboxMock, l1DaiGateway } = await setupWithdrawalTest({
-    //     inboxImpersonator,
-    //     l1Escrow: l1EscrowEOA,
-    //     l2DaiGateway: l2DaiGatewayEOA,
-    //     router: routerEOA,
-    //     user1,
-    //     bridgeImpersonator,
-    //     outboxImpersonator,
-    //   })
-    //   const exitReceiverMock = await deployArbitrumContractMock('IERC677ReceiverAndExitReceiver')
-    //   exitReceiverMock.smocked.onExitTransfer.will.return.with(true)
-    //   const callHookData = ethers.utils.defaultAbiCoder.encode(['uint256'], [42])
-    //   const transferExitTx = await l1DaiGateway
-    //     .connect(user1)
-    //     .transferExitAndCall(
-    //       expectedTransferId,
-    //       user1.address,
-    //       exitReceiverMock.address,
-    //       callHookData,
-    //       defaultWithdrawData,
-    //     )
-    //   const onExitTransferMessengerCall = exitReceiverMock.smocked.onExitTransfer.calls[0]
-    //   exitReceiverMock.smocked.onTokenTransfer.will.return.with()
-    //   expect(onExitTransferMessengerCall.exitNum).to.be.eq(expectedTransferId)
-    //   expect(onExitTransferMessengerCall.sender).to.be.eq(user1.address)
-    //   expect(onExitTransferMessengerCall.data).to.be.eq(defaultWithdrawData)
-    //   await expect(transferExitTx)
-    //     .to.emit(l1DaiGateway, 'WithdrawRedirected')
-    //     .withArgs(user1.address, exitReceiverMock.address, expectedTransferId, callHookData, defaultWithdrawData, true)
-    //   outboxMock.smocked.l2ToL1Sender.will.return.with(() => l2DaiGatewayEOA.address)
-    //   // it should withdraw funds not to user1 but to exitReceiverMock and should call onTokenTransfer
-    //   const finalizeWithdrawalTx = await l1DaiGateway
-    //     .connect(bridgeImpersonator)
-    //     .finalizeInboundTransfer(l1Dai.address, user1.address, user1.address, withdrawAmount, defaultWithdrawData)
-    //   const onWithdrawalMessengerCall = exitReceiverMock.smocked.onTokenTransfer.calls[0]
-    //   await expect(finalizeWithdrawalTx)
-    //     .to.emit(l1DaiGateway, 'TransferAndCallTriggered')
-    //     .withArgs(true, user1.address, exitReceiverMock.address, withdrawAmount, callHookData)
-    //   expect(await onWithdrawalMessengerCall._sender).to.be.eq(user1.address)
-    //   expect(await onWithdrawalMessengerCall._value).to.be.eq(withdrawAmount)
-    //   expect(await onWithdrawalMessengerCall.data).to.be.eq(callHookData)
-    //   expect(await l1Dai.balanceOf(user1.address)).to.be.equal(0)
-    //   expect(await l1Dai.balanceOf(exitReceiverMock.address)).to.be.equal(withdrawAmount)
-    //   expect(await l1Dai.balanceOf(l1EscrowEOA.address)).to.be.equal(initialTotalL1Supply - withdrawAmount)
-    // })
-    // it('reverts when not expected sender called', async () => {
-    //   const [
-    //     _deployer,
-    //     inboxImpersonator,
-    //     l1EscrowEOA,
-    //     l2DaiGatewayEOA,
-    //     routerEOA,
-    //     bridgeImpersonator,
-    //     outboxImpersonator,
-    //     user1,
-    //     user2,
-    //   ] = await ethers.getSigners()
-    //   const { l1DaiGateway } = await setupWithdrawalTest({
-    //     inboxImpersonator,
-    //     l1Escrow: l1EscrowEOA,
-    //     l2DaiGateway: l2DaiGatewayEOA,
-    //     router: routerEOA,
-    //     user1,
-    //     bridgeImpersonator,
-    //     outboxImpersonator,
-    //   })
-    //   const exitReceiverMock = await deployArbitrumContractMock('ITradeableExitReceiver')
-    //   exitReceiverMock.smocked.onExitTransfer.will.return.with(true)
-    //   await expect(
-    //     l1DaiGateway
-    //       .connect(user2)
-    //       .transferExitAndCall(
-    //         expectedTransferId,
-    //         user1.address,
-    //         exitReceiverMock.address,
-    //         defaultWithdrawData,
-    //         defaultWithdrawData,
-    //       ),
-    //   ).to.be.revertedWith(errorMessages.notExpectedSender)
-    // })
-    // it('works allows for multiple redirection of exits', async () => {
-    //   const [
-    //     _deployer,
-    //     inboxImpersonator,
-    //     l1EscrowEOA,
-    //     l2DaiGatewayEOA,
-    //     routerEOA,
-    //     bridgeImpersonator,
-    //     outboxImpersonator,
-    //     user1,
-    //     exitReceiverMockImpersonator,
-    //   ] = await ethers.getSigners()
-    //   const { l1Dai, outboxMock, l1DaiGateway } = await setupWithdrawalTest({
-    //     inboxImpersonator,
-    //     l1Escrow: l1EscrowEOA,
-    //     l2DaiGateway: l2DaiGatewayEOA,
-    //     router: routerEOA,
-    //     user1,
-    //     bridgeImpersonator,
-    //     outboxImpersonator,
-    //   })
-    //   const exitReceiverMock = await deployArbitrumContractMock('ITradeableExitReceiver', {
-    //     address: exitReceiverMockImpersonator.address,
-    //   })
-    //   exitReceiverMock.smocked.onExitTransfer.will.return.with(true)
-    //   const exitReceiverMock2 = await deployArbitrumContractMock('ITradeableExitReceiver')
-    //   exitReceiverMock2.smocked.onExitTransfer.will.return.with(true)
-    //   // first redirect
-    //   {
-    //     const transferExitTx = await l1DaiGateway
-    //       .connect(user1)
-    //       .transferExitAndCall(
-    //         expectedTransferId,
-    //         user1.address,
-    //         exitReceiverMock.address,
-    //         defaultWithdrawData,
-    //         defaultWithdrawData,
-    //       )
-    //     const onExitTransferMessengerCall = exitReceiverMock.smocked.onExitTransfer.calls[0]
-    //     expect(onExitTransferMessengerCall.exitNum).to.be.eq(expectedTransferId)
-    //     expect(onExitTransferMessengerCall.sender).to.be.eq(user1.address)
-    //     expect(onExitTransferMessengerCall.data).to.be.eq(defaultWithdrawData)
-    //     await expect(transferExitTx)
-    //       .to.emit(l1DaiGateway, 'WithdrawRedirected')
-    //       .withArgs(
-    //         user1.address,
-    //         exitReceiverMock.address,
-    //         expectedTransferId,
-    //         defaultWithdrawData,
-    //         defaultWithdrawData,
-    //         true,
-    //       )
-    //   }
-    //   // second redirect
-    //   {
-    //     const transferExitTx2 = await l1DaiGateway
-    //       .connect(exitReceiverMockImpersonator)
-    //       .transferExitAndCall(
-    //         expectedTransferId,
-    //         user1.address,
-    //         exitReceiverMock2.address,
-    //         defaultWithdrawData,
-    //         defaultWithdrawData,
-    //       )
-    //     const onExitTransferMessengerCall2 = exitReceiverMock2.smocked.onExitTransfer.calls[0]
-    //     expect(onExitTransferMessengerCall2.exitNum).to.be.eq(expectedTransferId)
-    //     expect(onExitTransferMessengerCall2.sender).to.be.eq(exitReceiverMockImpersonator.address)
-    //     expect(onExitTransferMessengerCall2.data).to.be.eq(defaultWithdrawData)
-    //     await expect(transferExitTx2)
-    //       .to.emit(l1DaiGateway, 'WithdrawRedirected')
-    //       .withArgs(
-    //         exitReceiverMock.address,
-    //         exitReceiverMock2.address,
-    //         expectedTransferId,
-    //         defaultWithdrawData,
-    //         defaultWithdrawData,
-    //         true,
-    //       )
-    //   }
-    //   outboxMock.smocked.l2ToL1Sender.will.return.with(() => l2DaiGatewayEOA.address)
-    //   // it should withdraw funds not to user1 but to exitReceiverMock2
-    //   await l1DaiGateway
-    //     .connect(bridgeImpersonator)
-    //     .finalizeInboundTransfer(l1Dai.address, user1.address, user1.address, withdrawAmount, defaultWithdrawData)
-    //   expect(await l1Dai.balanceOf(user1.address)).to.be.equal(0)
-    //   expect(await l1Dai.balanceOf(exitReceiverMock.address)).to.be.equal(0)
-    //   expect(await l1Dai.balanceOf(exitReceiverMock2.address)).to.be.equal(withdrawAmount)
-    //   expect(await l1Dai.balanceOf(l1EscrowEOA.address)).to.be.equal(initialTotalL1Supply - withdrawAmount)
-    // })
-    // it.skip('[SKIP TO IMPLEMENT] reverts when exitReceiver reverts', async () => {
-    //   // likely a smock bug
-    //   const [
-    //     _deployer,
-    //     inboxImpersonator,
-    //     l1EscrowEOA,
-    //     l2DaiGatewayEOA,
-    //     routerEOA,
-    //     bridgeImpersonator,
-    //     outboxImpersonator,
-    //     user1,
-    //   ] = await ethers.getSigners()
-    //   const { l1DaiGateway } = await setupWithdrawalTest({
-    //     inboxImpersonator,
-    //     l1Escrow: l1EscrowEOA,
-    //     l2DaiGateway: l2DaiGatewayEOA,
-    //     router: routerEOA,
-    //     user1,
-    //     bridgeImpersonator,
-    //     outboxImpersonator,
-    //   })
-    //   const exitReceiverMock = await deployArbitrumContractMock('ITradeableExitReceiver')
-    //   exitReceiverMock.smocked.onExitTransfer.will.revert.with('mock_reverted')
-    //   await expect(
-    //     l1DaiGateway
-    //       .connect(user1)
-    //       .transferExitAndCall(
-    //         expectedTransferId,
-    //         user1.address,
-    //         exitReceiverMock.address,
-    //         defaultWithdrawData,
-    //         defaultWithdrawData,
-    //       ),
-    //   ).to.be.revertedWith('mock_reverted')
-    // })
-    // it('reverts when exitReceiver returns false', async () => {
-    //   const [
-    //     _deployer,
-    //     inboxImpersonator,
-    //     l1EscrowEOA,
-    //     l2DaiGatewayEOA,
-    //     routerEOA,
-    //     bridgeImpersonator,
-    //     outboxImpersonator,
-    //     user1,
-    //   ] = await ethers.getSigners()
-    //   const { l1DaiGateway } = await setupWithdrawalTest({
-    //     inboxImpersonator,
-    //     l1Escrow: l1EscrowEOA,
-    //     l2DaiGateway: l2DaiGatewayEOA,
-    //     router: routerEOA,
-    //     user1,
-    //     bridgeImpersonator,
-    //     outboxImpersonator,
-    //   })
-    //   const exitReceiverMock = await deployArbitrumContractMock('ITradeableExitReceiver')
-    //   exitReceiverMock.smocked.onExitTransfer.will.return.with(false)
-    //   await expect(
-    //     l1DaiGateway
-    //       .connect(user1)
-    //       .transferExitAndCall(
-    //         expectedTransferId,
-    //         user1.address,
-    //         exitReceiverMock.address,
-    //         defaultWithdrawData,
-    //         defaultWithdrawData,
-    //       ),
-    //   ).to.be.revertedWith(errorMessages.transferHookFail)
-    // })
-    // it('reverts when exitReceiver is not a contract', async () => {
-    //   const [
-    //     _deployer,
-    //     inboxImpersonator,
-    //     l1EscrowEOA,
-    //     l2DaiGatewayEOA,
-    //     routerEOA,
-    //     bridgeImpersonator,
-    //     outboxImpersonator,
-    //     user1,
-    //   ] = await ethers.getSigners()
-    //   const [exitReceiverEOA] = await getRandomAddresses()
-    //   const { l1DaiGateway } = await setupWithdrawalTest({
-    //     inboxImpersonator,
-    //     l1Escrow: l1EscrowEOA,
-    //     l2DaiGateway: l2DaiGatewayEOA,
-    //     router: routerEOA,
-    //     user1,
-    //     bridgeImpersonator,
-    //     outboxImpersonator,
-    //   })
-    //   await expect(
-    //     l1DaiGateway
-    //       .connect(user1)
-    //       .transferExitAndCall(
-    //         expectedTransferId,
-    //         user1.address,
-    //         exitReceiverEOA,
-    //         defaultWithdrawData,
-    //         defaultWithdrawData,
-    //       ),
-    //   ).to.be.revertedWith(errorMessages.exitToNotAContract)
-    // })
-    // it('reverts when trying to exit twice', async () => {
-    //   const [
-    //     _deployer,
-    //     inboxImpersonator,
-    //     l1EscrowEOA,
-    //     l2DaiGatewayEOA,
-    //     routerEOA,
-    //     bridgeImpersonator,
-    //     outboxImpersonator,
-    //     user1,
-    //   ] = await ethers.getSigners()
-    //   const { l1DaiGateway } = await setupWithdrawalTest({
-    //     inboxImpersonator,
-    //     l1Escrow: l1EscrowEOA,
-    //     l2DaiGateway: l2DaiGatewayEOA,
-    //     router: routerEOA,
-    //     user1,
-    //     bridgeImpersonator,
-    //     outboxImpersonator,
-    //   })
-    //   const exitReceiverMock = await deployArbitrumContractMock('ITradeableExitReceiver')
-    //   exitReceiverMock.smocked.onExitTransfer.will.return.with(true)
-    //   const exitReceiverMock2 = await deployArbitrumContractMock('ITradeableExitReceiver')
-    //   exitReceiverMock2.smocked.onExitTransfer.will.return.with(true)
-    //   await l1DaiGateway
-    //     .connect(user1)
-    //     .transferExitAndCall(
-    //       expectedTransferId,
-    //       user1.address,
-    //       exitReceiverMock.address,
-    //       defaultWithdrawData,
-    //       defaultWithdrawData,
-    //     )
-    //   await expect(
-    //     l1DaiGateway
-    //       .connect(user1)
-    //       .transferExitAndCall(
-    //         expectedTransferId,
-    //         user1.address,
-    //         exitReceiverMock2.address,
-    //         defaultWithdrawData,
-    //         defaultWithdrawData,
-    //       ),
-    //   ).to.be.revertedWith(errorMessages.notExpectedSender)
-    // })
   })
 
   describe('close()', () => {
@@ -1092,23 +590,6 @@ describe('L1DaiGateway', () => {
       expect(await l1DaiGateway.l1Escrow()).to.be.eq(l1Escrow)
       expect(await l1DaiGateway.isOpen()).to.be.eq(1)
     })
-  })
-
-  describe.skip('inboundEscrowAndCall', () => {
-    // it("can't be called by anyone", async () => {
-    //   const [_deployer, inboxImpersonator, l1EscrowEOA, l2DaiGatewayEOA, routerEOA, user1, user2] =
-    //     await ethers.getSigners()
-    //   const { l1DaiGateway } = await setupTest({
-    //     inboxImpersonator,
-    //     l1Escrow: l1EscrowEOA,
-    //     l2DaiGateway: l2DaiGatewayEOA,
-    //     router: routerEOA,
-    //     user1,
-    //   })
-    //   await expect(
-    //     l1DaiGateway.inboundEscrowAndCall(user2.address, 100, user2.address, user2.address, '0x'),
-    //   ).to.be.revertedWith(errorMessages.inboundEscrowAndCallGuard)
-    // })
   })
 
   it('has correct public interface', async () => {
