@@ -1,7 +1,9 @@
 import { deployUsingFactoryAndVerify, getActiveWards, getAddressOfNextDeployedContract } from '@makerdao/hardhat-utils'
+import { AuthableLike } from '@makerdao/hardhat-utils/dist/auth/AuthableContract'
 import { expect } from 'chai'
 import { providers, Signer, Wallet } from 'ethers'
 import { ethers } from 'hardhat'
+import { compact } from 'lodash'
 import { assert, Awaited } from 'ts-essentials'
 
 import { waitForTx } from '../arbitrum-helpers'
@@ -75,6 +77,7 @@ export async function deployRouter(deps: RouterDependencies): Promise<RouterDepl
   }
 }
 
+// @note: by default the deployment won't be fully secured -- deployer won't be denied
 export async function deployBridge(deps: NetworkConfig, routerDeployment: RouterDeployment) {
   // deploy contracts
   const l1Escrow = await deployUsingFactoryAndVerify(deps.l1.deployer, await ethers.getContractFactory('L1Escrow'), [])
@@ -150,32 +153,49 @@ export async function deployBridge(deps: NetworkConfig, routerDeployment: Router
   }
 }
 
+function normalizeAddresses(addresses: string[]): string[] {
+  return addresses.map((a) => a.toLowerCase()).sort()
+}
+
 export async function performSanityChecks(
   deps: NetworkConfig,
   bridgeDeployment: BridgeDeployment,
   l1BlockOfBeginningOfDeployment: number,
   l2BlockOfBeginningOfDeployment: number,
+  includeDeployer: boolean,
 ) {
-  console.log('Permission sanity checks...')
-  expect(await getActiveWards(bridgeDeployment.l1Escrow, l1BlockOfBeginningOfDeployment)).to.deep.eq([
+  console.log('Performing sanity checks...')
+
+  async function checkPermissions(contract: AuthableLike, startBlock: number, _expectedPermissions: string[]) {
+    const actualPermissions = await getActiveWards(contract, startBlock)
+    const expectedPermissions = compact([..._expectedPermissions, includeDeployer && deps.l1.deployer.address])
+
+    expect(normalizeAddresses(actualPermissions)).to.deep.eq(normalizeAddresses(expectedPermissions))
+  }
+
+  await checkPermissions(bridgeDeployment.l1Escrow, l1BlockOfBeginningOfDeployment, [
     deps.l1.makerPauseProxy,
     deps.l1.makerESM,
   ])
-  expect(await getActiveWards(bridgeDeployment.l1DaiGateway, l1BlockOfBeginningOfDeployment)).to.deep.eq([
+  await checkPermissions(bridgeDeployment.l1DaiGateway, l1BlockOfBeginningOfDeployment, [
     deps.l1.makerPauseProxy,
     deps.l1.makerESM,
   ])
-  expect(await getActiveWards(bridgeDeployment.l1GovRelay, l1BlockOfBeginningOfDeployment)).to.deep.eq([
+  await checkPermissions(bridgeDeployment.l1GovRelay, l1BlockOfBeginningOfDeployment, [
     deps.l1.makerPauseProxy,
     deps.l1.makerESM,
   ])
-  expect(await getActiveWards(bridgeDeployment.l2DaiGateway, l2BlockOfBeginningOfDeployment)).to.deep.eq([
+  await checkPermissions(bridgeDeployment.l2DaiGateway, l2BlockOfBeginningOfDeployment, [
     bridgeDeployment.l2GovRelay.address,
   ])
-  expect(await getActiveWards(bridgeDeployment.l2Dai, l2BlockOfBeginningOfDeployment)).to.deep.eq([
+  await checkPermissions(bridgeDeployment.l2Dai, l2BlockOfBeginningOfDeployment, [
     bridgeDeployment.l2DaiGateway.address,
     bridgeDeployment.l2GovRelay.address,
   ])
+
+  expect(await bridgeDeployment.l1DaiGateway.l1Escrow()).to.be.eq(bridgeDeployment.l1Escrow.address)
+  expect(await bridgeDeployment.l1GovRelay.l2GovernanceRelay()).to.be.eq(bridgeDeployment.l2GovRelay.address)
+  expect(await bridgeDeployment.l1GovRelay.inbox()).to.be.eq(await bridgeDeployment.l1DaiGateway.inbox())
 }
 
 export async function useStaticDeployment(

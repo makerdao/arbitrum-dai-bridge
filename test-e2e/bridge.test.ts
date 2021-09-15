@@ -81,6 +81,7 @@ describe('bridge', () => {
     )
 
     expect(await bridgeDeployment.l2Dai.balanceOf(network.l1.deployer.address)).to.be.eq(initialL2Balance) // burn is immediate
+    // @todo ensure that withdrawal was successful
   })
 
   it('deposits funds using gateway', async () => {

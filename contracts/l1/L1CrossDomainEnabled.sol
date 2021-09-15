@@ -72,7 +72,7 @@ abstract contract L1CrossDomainEnabled {
   ) internal returns (uint256) {
     uint256 seqNum = inbox.createRetryableTicketNoRefundAliasRewrite{value: l1CallValue}(
       target,
-      0, // we always assume that l2CallValue = 9
+      0, // we always assume that l2CallValue = 0
       maxSubmissionCost,
       user,
       user,
