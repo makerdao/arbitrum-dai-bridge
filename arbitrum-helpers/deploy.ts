@@ -208,6 +208,7 @@ export async function performSanityChecks(
   expect(await bridgeDeployment.l1GovRelay.l2GovernanceRelay()).to.be.eq(bridgeDeployment.l2GovRelay.address)
   expect(await bridgeDeployment.l1GovRelay.inbox()).to.be.eq(await bridgeDeployment.l1DaiGateway.inbox())
 }
+
 export async function denyDeployer(deps: NetworkConfig, bridgeDeployment: BridgeDeployment) {
   console.log('Denying deployer access')
   await waitForTx(bridgeDeployment.l2Dai.deny(await deps.l2.deployer.getAddress()))
