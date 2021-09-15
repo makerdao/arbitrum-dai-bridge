@@ -18,6 +18,11 @@ export class RetryProvider extends providers.JsonRpcProvider {
   public async perform(method: string, params: any): Promise<any> {
     let attempt = 0
 
+    // do not retry txs
+    if (method === 'eth_sendRawTransaction') {
+      return await super.perform(method, params)
+    }
+
     return utils.poll(async () => {
       attempt++
 
