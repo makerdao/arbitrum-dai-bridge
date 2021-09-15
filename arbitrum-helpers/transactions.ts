@@ -6,6 +6,11 @@ export async function waitForTx(
 ): Promise<providers.TransactionReceipt> {
   const resolvedTx = await tx
   const confirmations = _confirmations ?? chainIdToConfirmationsNeededForFinalization(resolvedTx.chainId)
+
+  // we retry .wait b/c sometimes it fails for the first time
+  try {
+    return await resolvedTx.wait(confirmations)
+  } catch (e) {}
   return await resolvedTx.wait(confirmations)
 }
 
