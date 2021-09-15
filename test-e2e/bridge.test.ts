@@ -14,6 +14,7 @@ import {
   BridgeDeployment,
   deployBridge,
   deployRouter,
+  getRinkebyNetworkConfig,
   NetworkConfig,
   RouterDeployment,
   useStaticDeployment,
@@ -28,7 +29,6 @@ import {
   getMaxSubmissionPrice,
   setGatewayForToken,
 } from '../arbitrum-helpers/bridge'
-import { RetryProvider } from './RetryProvider'
 
 const amount = parseUnits('7', 'ether')
 
@@ -251,7 +251,10 @@ describe('bridge', () => {
 })
 
 export async function setupTest() {
-  const network = getRinkebyNetworkConfig()
+  const pkey = getRequiredEnv('E2E_TESTS_PKEY')
+  const l1Rpc = getRequiredEnv('E2E_TESTS_L1_RPC')
+  const l2Rpc = getRequiredEnv('E2E_TESTS_L2_RPC')
+  const network = await getRinkebyNetworkConfig({ pkey, l1Rpc, l2Rpc })
 
   let bridgeDeployment: BridgeDeployment
   let routerDeployment: RouterDeployment
@@ -295,29 +298,5 @@ export async function setupTest() {
     bridgeDeployment,
     routerDeployment,
     network,
-  }
-}
-
-export function getRinkebyNetworkConfig(): NetworkConfig {
-  const pkey = getRequiredEnv('E2E_TESTS_PKEY')
-  const l1 = new ethers.providers.JsonRpcProvider(getRequiredEnv('E2E_TESTS_L1_RPC'))
-  const l2 = new RetryProvider(5, getRequiredEnv('E2E_TESTS_L2_RPC'))
-
-  const l1Deployer = new ethers.Wallet(pkey, l1)
-  const l2Deployer = new ethers.Wallet(pkey, l2)
-
-  return {
-    l1: {
-      provider: l1,
-      dai: '0xd9e66A2f546880EA4d800F189d6F12Cc15Bff281',
-      deployer: l1Deployer,
-      inbox: '0x578BAde599406A8fE3d24Fd7f7211c0911F5B29e',
-      makerPauseProxy: '0xeA5F0Db1e768EE40eBEF1f3832F8C7B368690f66',
-      makerESM: '0xa44E96287C34b9a37d3A0c9541908f4Ef3Cd4Aa4',
-    },
-    l2: {
-      provider: l2,
-      deployer: l2Deployer,
-    },
   }
 }
