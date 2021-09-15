@@ -13,3 +13,5 @@ corpus/
 # certora
 .*certora*
 .last_confs/
+coverage.json
+coverage
