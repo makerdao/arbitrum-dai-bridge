@@ -28,20 +28,18 @@ abstract contract L1CrossDomainEnabled {
   }
 
   modifier onlyL2Counterpart(address l2Counterpart) {
-    address _inbox = inbox;
-
     // a message coming from the counterpart gateway was executed by the bridge
-    address bridge = address(IInbox(_inbox).bridge());
+    address bridge = address(IInbox(inbox).bridge());
     require(msg.sender == bridge, "NOT_FROM_BRIDGE");
 
     // and the outbox reports that the L2 address of the sender is the counterpart gateway
-    address l2ToL1Sender = getL2ToL1Sender(_inbox);
+    address l2ToL1Sender = getL2ToL1Sender(bridge);
     require(l2ToL1Sender == l2Counterpart, "ONLY_COUNTERPART_GATEWAY");
     _;
   }
 
-  function getL2ToL1Sender(address _inbox) internal view returns (address) {
-    IOutbox outbox = IOutbox(IInbox(_inbox).bridge().activeOutbox());
+  function getL2ToL1Sender(address _bridge) internal view returns (address) {
+    IOutbox outbox = IOutbox(IBridge(_bridge).activeOutbox());
     address l2ToL1Sender = outbox.l2ToL1Sender();
 
     require(l2ToL1Sender != address(0), "NO_SENDER");
