@@ -35,7 +35,6 @@ abstract contract L1CrossDomainEnabled {
 
     // and the outbox reports that the L2 address of the sender is the counterpart gateway
     address l2ToL1Sender = IOutbox(IBridge(bridge).activeOutbox()).l2ToL1Sender();
-    require(l2ToL1Sender != address(0), "NO_SENDER");
     require(l2ToL1Sender == l2Counterpart, "ONLY_COUNTERPART_GATEWAY");
     _;
   }
