@@ -1,4 +1,4 @@
-import { deployUsingFactoryAndVerify, getActiveWards, getAddressOfNextDeployedContract } from '@makerdao/hardhat-utils'
+import { getActiveWards, getAddressOfNextDeployedContract } from '@makerdao/hardhat-utils'
 import { AuthableLike } from '@makerdao/hardhat-utils/dist/auth/AuthableContract'
 import { expect } from 'chai'
 import { providers, Signer, Wallet } from 'ethers'
@@ -9,6 +9,7 @@ import { assert, Awaited } from 'ts-essentials'
 import { waitForTx } from '../arbitrum-helpers'
 import { Dai, L1DaiGateway, L1Escrow, L1GovernanceRelay, L2DaiGateway, L2GovernanceRelay } from '../typechain'
 import { getArbitrumArtifact, getArbitrumArtifactFactory } from './contracts'
+import { deployUsingFactoryAndVerify } from './deployment'
 
 export interface NetworkConfig {
   l1: {
@@ -54,12 +55,14 @@ export async function deployRouter(deps: RouterDependencies): Promise<RouterDepl
 
   const futureAddressOfL2GatewayRouter = await getAddressOfNextDeployedContract(deps.l2.deployer)
 
-  await l1GatewayRouter.initialize(
-    await deps.l1.deployer.getAddress(),
-    zeroAddr,
-    zeroAddr,
-    futureAddressOfL2GatewayRouter,
-    deps.l1.inbox,
+  await waitForTx(
+    l1GatewayRouter.initialize(
+      await deps.l1.deployer.getAddress(),
+      zeroAddr,
+      zeroAddr,
+      futureAddressOfL2GatewayRouter,
+      deps.l1.inbox,
+    ),
   )
 
   const l2GatewayRouter = await deployUsingFactoryAndVerify(
@@ -69,7 +72,7 @@ export async function deployRouter(deps: RouterDependencies): Promise<RouterDepl
   )
   expect(l2GatewayRouter.address).to.be.eq(futureAddressOfL2GatewayRouter)
 
-  await l2GatewayRouter.initialize(l1GatewayRouter.address, zeroAddr)
+  await waitForTx(l2GatewayRouter.initialize(l1GatewayRouter.address, zeroAddr))
 
   return {
     l1GatewayRouter,
@@ -90,7 +93,7 @@ export async function deployBridge(
       'Expected L2DAI address doesnt match with address that will be deployed',
     )
   }
-  // deploy contracts
+
   const l1Escrow = await deployUsingFactoryAndVerify(deps.l1.deployer, await ethers.getContractFactory('L1Escrow'), [])
   console.log('Deployed l1Escrow at: ', l1Escrow.address)
 
