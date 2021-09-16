@@ -24,9 +24,7 @@ import {
 import {
   depositToStandardBridge,
   depositToStandardRouter,
-  getGasPriceBid,
-  getMaxGas,
-  getMaxSubmissionPrice,
+  executeSpell,
   setGatewayForToken,
 } from '../arbitrum-helpers/bridge'
 
@@ -178,40 +176,14 @@ describe('bridge', () => {
 
     // Close L2 bridge V1
     console.log('Executing spell to close L2 Bridge v1 and grant minting permissions to L2 Bridge v2')
+
     const spellCalldata = l2UpgradeSpell.interface.encodeFunctionData('upgradeBridge', [
       bridgeDeployment.l2DaiGateway.address,
       l2DaiGatewayV2.address,
     ])
-    const l2MessageCalldata = bridgeDeployment.l2GovRelay.interface.encodeFunctionData('relay', [
-      l2UpgradeSpell.address,
-      spellCalldata,
-    ])
-    const calldataLength = l2MessageCalldata.length
-    const gasPriceBid = await getGasPriceBid(network.l2.provider)
-    const maxSubmissionPrice = await getMaxSubmissionPrice(network.l2.provider, calldataLength)
-    const maxGas = await getMaxGas(
-      network.l2.provider,
-      bridgeDeployment.l1GovRelay.address,
-      bridgeDeployment.l2GovRelay.address,
-      bridgeDeployment.l2GovRelay.address,
-      maxSubmissionPrice,
-      gasPriceBid,
-      l2MessageCalldata,
-    )
-    const ethValue = await maxSubmissionPrice.add(gasPriceBid.mul(maxGas))
 
-    await network.l1.deployer.sendTransaction({ to: bridgeDeployment.l1GovRelay.address, value: ethValue })
+    await executeSpell(network, bridgeDeployment, l2UpgradeSpell.address, spellCalldata)
 
-    await waitToRelayTxsToL2(
-      waitForTx(
-        bridgeDeployment.l1GovRelay
-          .connect(network.l1.deployer)
-          .relay(l2UpgradeSpell.address, spellCalldata, ethValue, maxGas, gasPriceBid, maxSubmissionPrice),
-      ),
-      network.l1.inbox,
-      network.l1.provider,
-      network.l2.provider,
-    )
     console.log('Bridge upgraded!')
 
     await waitForTx(bridgeDeployment.l1Dai.approve(l1DaiGatewayV2.address, amount))
