@@ -1,3 +1,4 @@
+import { defaultAbiCoder } from '@ethersproject/abi'
 import {
   assertPublicMutableMethods,
   assertPublicNotMutableMethods,
@@ -219,6 +220,52 @@ describe('L2DaiGateway', () => {
           receiver.address,
           withdrawAmount,
           defaultData,
+        )
+      const withdrawCrossChainCall = arbSysMock.smocked.sendTxToL1.calls[0]
+
+      expect(await l2Dai.balanceOf(sender.address)).to.be.eq(initialTotalL2Supply - withdrawAmount)
+      expect(await l2Dai.balanceOf(receiver.address)).to.be.eq(0)
+      expect(await l2Dai.totalSupply()).to.be.eq(initialTotalL2Supply - withdrawAmount)
+      await expect(tx)
+        .to.emit(l2DaiGateway, 'WithdrawalInitiated')
+        .withArgs(
+          l1Dai.address,
+          sender.address,
+          receiver.address,
+          expectedWithdrawalId,
+          expectedWithdrawalId,
+          withdrawAmount,
+        )
+      expect(withdrawCrossChainCall.destAddr).to.eq(l1DaiBridge.address)
+      expect(withdrawCrossChainCall.calldataForL1).to.eq(
+        new L1DaiGateway__factory().interface.encodeFunctionData('finalizeInboundTransfer', [
+          l1Dai.address,
+          sender.address,
+          receiver.address,
+          withdrawAmount,
+          ethers.utils.defaultAbiCoder.encode(['uint256', 'bytes'], [expectedWithdrawalId, defaultData]),
+        ]),
+      )
+    })
+
+    it('sends xdomain message and burns tokens when called through router', async () => {
+      const [deployer, , l1DaiBridge, l1Dai, router, sender, receiver] = await ethers.getSigners()
+      const { l2Dai, l2DaiGateway, arbSysMock } = await setupWithdrawalTest({
+        l1Dai,
+        l1DaiBridge,
+        router,
+        user1: sender,
+        deployer,
+      })
+      const routerEncodedData = defaultAbiCoder.encode(['address', 'bytes'], [sender.address, defaultData])
+
+      const tx = await l2DaiGateway
+        .connect(router)
+        ['outboundTransfer(address,address,uint256,bytes)'](
+          l1Dai.address,
+          receiver.address,
+          withdrawAmount,
+          routerEncodedData,
         )
       const withdrawCrossChainCall = arbSysMock.smocked.sendTxToL1.calls[0]
 
