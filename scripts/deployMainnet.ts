@@ -4,19 +4,19 @@ import { mapValues } from 'lodash'
 
 import {
   deployBridge,
-  getRinkebyNetworkConfig,
-  getRinkebyRouterDeployment,
+  getMainnetNetworkConfig,
+  getMainnetRouterDeployment,
   performSanityChecks,
 } from '../arbitrum-helpers'
 
 async function main() {
-  const pkey = getRequiredEnv('L1_RINKEBY_DEPLOYER_PRIV_KEY')
-  const l1Rpc = getRequiredEnv('L1_RINKEBY_RPC_URL')
-  const l2Rpc = getRequiredEnv('L2_RINKEBY_RPC_URL')
+  const pkey = getRequiredEnv('L1_MAINNET_DEPLOYER_PRIV_KEY')
+  const l1Rpc = getRequiredEnv('L1_MAINNET_RPC_URL')
+  const l2Rpc = getRequiredEnv('L2_MAINNET_RPC_URL')
 
-  const network = await getRinkebyNetworkConfig({ pkey, l1Rpc, l2Rpc })
-  console.log(`Deploying to Rinkeby testnet using: ${network.l1.deployer.address}`)
-  const routerDeployment = await getRinkebyRouterDeployment(network)
+  const network = await getMainnetNetworkConfig({ pkey, l1Rpc, l2Rpc })
+  console.log(`Deploying to Mainnet using: ${network.l1.deployer.address}`)
+  const routerDeployment = await getMainnetRouterDeployment(network)
 
   const l1BlockOfBeginningOfDeployment = await network.l1.provider.getBlockNumber()
   const l2BlockOfBeginningOfDeployment = await network.l2.provider.getBlockNumber()
