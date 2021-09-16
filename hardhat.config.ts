@@ -1,3 +1,4 @@
+import 'solidity-coverage'
 import 'hardhat-gas-reporter'
 import '@nomiclabs/hardhat-etherscan'
 import '@nomiclabs/hardhat-ethers'

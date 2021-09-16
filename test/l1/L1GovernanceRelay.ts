@@ -106,8 +106,6 @@ describe('L1GovernanceRelay', () => {
       expect(await provider.getBalance(randomReceiver)).to.eq(defaultEthValue)
     })
 
-    it.skip('reverts when transfer for reverted')
-
     it('reverts when not authed', async () => {
       const [deployer, l2GovernanceRelay, other] = await ethers.getSigners()
       const randomReceiver = await getRandomAddress()

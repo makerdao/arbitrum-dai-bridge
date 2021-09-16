@@ -1,9 +1,10 @@
-import { waitForTx } from '@makerdao/hardhat-utils'
 import { BigNumber, ethers, Wallet } from 'ethers'
 import { defaultAbiCoder } from 'ethers/lib/utils'
 
+import { waitForTx, waitToRelayTxsToL2 } from '../arbitrum-helpers'
 import { L1DaiGateway } from '../typechain'
 import { getArbitrumCoreContracts } from './contracts'
+import { BridgeDeployment, NetworkConfig } from './deploy'
 
 export async function getGasPriceBid(l2: ethers.providers.BaseProvider): Promise<BigNumber> {
   return await l2.getGasPrice()
@@ -150,4 +151,41 @@ export async function setGatewayForToken({
   await l1Router.setGateways([token], [tokenGateway.address], 0, gasPriceBid, maxSubmissionPrice, {
     value: maxSubmissionPrice,
   })
+}
+
+export async function executeSpell(
+  network: NetworkConfig,
+  bridgeDeployment: BridgeDeployment,
+  l2Spell: string,
+  spellCalldata: string,
+) {
+  const l2MessageCalldata = bridgeDeployment.l2GovRelay.interface.encodeFunctionData('relay', [l2Spell, spellCalldata])
+  const calldataLength = l2MessageCalldata.length
+
+  const gasPriceBid = await getGasPriceBid(network.l2.provider)
+  const maxSubmissionPrice = await getMaxSubmissionPrice(network.l2.provider, calldataLength)
+  const maxGas = await getMaxGas(
+    network.l2.provider,
+    bridgeDeployment.l1GovRelay.address,
+    bridgeDeployment.l2GovRelay.address,
+    bridgeDeployment.l2GovRelay.address,
+    maxSubmissionPrice,
+    gasPriceBid,
+    l2MessageCalldata,
+  )
+  const ethValue = maxSubmissionPrice.add(gasPriceBid.mul(maxGas))
+  console.log('ethValue: ', ethValue.toString())
+
+  await network.l1.deployer.sendTransaction({ to: bridgeDeployment.l1GovRelay.address, value: ethValue })
+
+  await waitToRelayTxsToL2(
+    waitForTx(
+      bridgeDeployment.l1GovRelay
+        .connect(network.l1.deployer)
+        .relay(l2Spell, spellCalldata, ethValue, maxGas, gasPriceBid, maxSubmissionPrice),
+    ),
+    network.l1.inbox,
+    network.l1.provider,
+    network.l2.provider,
+  )
 }

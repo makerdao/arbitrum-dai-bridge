@@ -14,6 +14,7 @@ import {
   BridgeDeployment,
   deployBridge,
   deployRouter,
+  getRinkebyNetworkConfig,
   NetworkConfig,
   RouterDeployment,
   useStaticDeployment,
@@ -23,12 +24,9 @@ import {
 import {
   depositToStandardBridge,
   depositToStandardRouter,
-  getGasPriceBid,
-  getMaxGas,
-  getMaxSubmissionPrice,
+  executeSpell,
   setGatewayForToken,
 } from '../arbitrum-helpers/bridge'
-import { RetryProvider } from './RetryProvider'
 
 const amount = parseUnits('7', 'ether')
 
@@ -81,6 +79,7 @@ describe('bridge', () => {
     )
 
     expect(await bridgeDeployment.l2Dai.balanceOf(network.l1.deployer.address)).to.be.eq(initialL2Balance) // burn is immediate
+    // @todo ensure that withdrawal was successful
   })
 
   it('deposits funds using gateway', async () => {
@@ -177,40 +176,14 @@ describe('bridge', () => {
 
     // Close L2 bridge V1
     console.log('Executing spell to close L2 Bridge v1 and grant minting permissions to L2 Bridge v2')
+
     const spellCalldata = l2UpgradeSpell.interface.encodeFunctionData('upgradeBridge', [
       bridgeDeployment.l2DaiGateway.address,
       l2DaiGatewayV2.address,
     ])
-    const l2MessageCalldata = bridgeDeployment.l2GovRelay.interface.encodeFunctionData('relay', [
-      l2UpgradeSpell.address,
-      spellCalldata,
-    ])
-    const calldataLength = l2MessageCalldata.length
-    const gasPriceBid = await getGasPriceBid(network.l2.provider)
-    const maxSubmissionPrice = await getMaxSubmissionPrice(network.l2.provider, calldataLength)
-    const maxGas = await getMaxGas(
-      network.l2.provider,
-      bridgeDeployment.l1GovRelay.address,
-      bridgeDeployment.l2GovRelay.address,
-      bridgeDeployment.l2GovRelay.address,
-      maxSubmissionPrice,
-      gasPriceBid,
-      l2MessageCalldata,
-    )
-    const ethValue = await maxSubmissionPrice.add(gasPriceBid.mul(maxGas))
 
-    await network.l1.deployer.sendTransaction({ to: bridgeDeployment.l1GovRelay.address, value: ethValue })
+    await executeSpell(network, bridgeDeployment, l2UpgradeSpell.address, spellCalldata)
 
-    await waitToRelayTxsToL2(
-      waitForTx(
-        bridgeDeployment.l1GovRelay
-          .connect(network.l1.deployer)
-          .relay(l2UpgradeSpell.address, spellCalldata, ethValue, maxGas, gasPriceBid, maxSubmissionPrice),
-      ),
-      network.l1.inbox,
-      network.l1.provider,
-      network.l2.provider,
-    )
     console.log('Bridge upgraded!')
 
     await waitForTx(bridgeDeployment.l1Dai.approve(l1DaiGatewayV2.address, amount))
@@ -251,16 +224,21 @@ describe('bridge', () => {
 })
 
 export async function setupTest() {
-  const network = getRinkebyNetworkConfig()
+  const pkey = getRequiredEnv('E2E_TESTS_PKEY')
+  const l1Rpc = getRequiredEnv('E2E_TESTS_L1_RPC')
+  const l2Rpc = getRequiredEnv('E2E_TESTS_L2_RPC')
+  const network = await getRinkebyNetworkConfig({ pkey, l1Rpc, l2Rpc })
 
   let bridgeDeployment: BridgeDeployment
   let routerDeployment: RouterDeployment
 
-  const staticDeployment = getOptionalEnv('E2E_TESTS_DEPLOYMENT')
-  if (staticDeployment) {
+  // this is a mechanism to reuse old deployment -- speeds up development
+  const staticDeploymentString = getOptionalEnv('E2E_TESTS_DEPLOYMENT')
+  if (staticDeploymentString) {
     console.log('Using static deployment...')
-    routerDeployment = await useStaticRouterDeployment(network, staticDeployment)
-    bridgeDeployment = await useStaticDeployment(network, staticDeployment)
+    const deployment = JSON.parse(staticDeploymentString)
+    routerDeployment = await useStaticRouterDeployment(network, deployment)
+    bridgeDeployment = await useStaticDeployment(network, deployment)
   } else {
     routerDeployment = await deployRouter(network)
     bridgeDeployment = await deployBridge(network, routerDeployment)
@@ -295,29 +273,5 @@ export async function setupTest() {
     bridgeDeployment,
     routerDeployment,
     network,
-  }
-}
-
-export function getRinkebyNetworkConfig(): NetworkConfig {
-  const pkey = getRequiredEnv('E2E_TESTS_PKEY')
-  const l1 = new ethers.providers.JsonRpcProvider(getRequiredEnv('E2E_TESTS_L1_RPC'))
-  const l2 = new RetryProvider(5, getRequiredEnv('E2E_TESTS_L2_RPC'))
-
-  const l1Deployer = new ethers.Wallet(pkey, l1)
-  const l2Deployer = new ethers.Wallet(pkey, l2)
-
-  return {
-    l1: {
-      provider: l1,
-      dai: '0xd9e66A2f546880EA4d800F189d6F12Cc15Bff281',
-      deployer: l1Deployer,
-      inbox: '0x578BAde599406A8fE3d24Fd7f7211c0911F5B29e',
-      makerPauseProxy: '0xeA5F0Db1e768EE40eBEF1f3832F8C7B368690f66',
-      makerESM: '0xa44E96287C34b9a37d3A0c9541908f4Ef3Cd4Aa4',
-    },
-    l2: {
-      provider: l2,
-      deployer: l2Deployer,
-    },
   }
 }
