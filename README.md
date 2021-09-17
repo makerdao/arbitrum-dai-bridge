@@ -27,8 +27,8 @@ Arbitrum Dai, upgradable token bridge and governance relay
 
 ### Deploying new token bridge
 
-This bridge stores funds in an external escrow account rather than on the bridge address itself. To upgrade, deploy new
-bridge independently and connect to the same escrow. Thanks to this, multiple bridges can operate at the same time (with
+This bridge stores funds in an external escrow account rather than on the bridge address itself. To upgrade, deploy the new
+bridge independently and connect it to the same escrow. Thanks to this, multiple bridges can operate at the same time (with
 potentially different interfaces), and no bridge will ever run out of funds.
 
 ### Closing bridge
@@ -37,22 +37,22 @@ After deploying a new bridge, you might consider closing the old one. The proced
 messages (`finalizeInboundTransfer`) that can be in progress.
 
 An owner calls `L2DaiGateway.close()` and `L1DaiGateway.close()` so no new async messages can be sent to the other part
-of the bridge. After all async messages are done processing (can take up to 1 week) bridge is effectively closed. Now,
+of the bridge. After all async messages are done processing (can take up to 1 week), the bridge is effectively closed. Now, the
 owner can consider revoking approval to access funds from escrow on L1 and token minting rights on L2.
 
 ## Emergency shutdown
 
 If ES is triggered, ESM contract can be used to `deny` access from the `PauseProxy` (governance). In such scenario the
-bridge continues to work as usual and it's impossible to be closed.
+bridge continues to work as usual and it's impossible to close it.
 
 ## Known Risks
 
 ### Wrong parameters for xchain messages
 
 Arbitrum's xchain messages require
-[couple of arguments](https://developer.offchainlabs.com/docs/l1_l2_messages#parameters). We expose these in our public
+[a couple of arguments](https://developer.offchainlabs.com/docs/l1_l2_messages#parameters). We expose these in our public
 interfaces so it's up to the users to select appropriate values. Wrong values will cause a need to manually retry L1 ->
-L2 messages or in the worst case can cause that a message will be lost. This is especially difficult when interacting
+L2 messages or in the worst case can cause a message to be lost. This is especially difficult when interacting
 with `L1GovernanceRelay` via MakerDAO governance spells with a long delay (2 days).
 
 ### Arbitrum bug
@@ -74,7 +74,7 @@ required to send DAI back to rightful owners or redeploy Arbitrum system.
 
 **L2 -> L1 message passing bug**
 
-Bug allowing to send arbitrary messages from L2 to L1 is potentially more harmful. This can happen two ways:
+Bug allowing to send arbitrary messages from L2 to L1 is potentially more harmful. This can happen in two ways:
 
 1. Bug in `Outbox` allows sending arbitrary messages on L1 bypassing the dispute period,
 2. The fraud proof system stops working which allows submitting incorrect state root. Such state root can be used to
@@ -82,28 +82,28 @@ Bug allowing to send arbitrary messages from L2 to L1 is potentially more harmfu
 
 If (1) happens, an attacker can immediately drain L1 DAI from `L1Escrow`.
 
-If (2) happens, governance can disconnect `L1DAITokenBridge` from `L1Escrow` and prevent from stealing L1 DAI.
+If (2) happens, governance can disconnect `L1DAITokenBridge` from `L1Escrow` and prevent the theft of L1 DAI.
 
 **Malicious router**
 
 `GatewayRouter` developed by Arbitrum team, is a privileged actor in our system and allows explicitly passing addresses
-that initiated deposits/withdrawals. It was reviewed by our team but if there is a bug in implementation it could in
-theory by used to steal funds from the escrow (burn arbitrary L2 DAI tokens and withdraw to any address, or steal DAI
+that initiated deposits/withdrawals. It was reviewed by our team but if there is a bug in its implementation it could in
+theory be used to steal funds from the escrow (burn arbitrary L2 DAI tokens and withdraw them to any address, or steal DAI
 that was already approved on L1). If it's malicious, it could be used to steal funds.
 
 ### Arbitrum upgrade
 
 Arbitrum contracts ARE upgradable. A malicious upgrade could result in stealing user funds in many ways. Users need to
-trust Arbitrum admins while using this bridge or while interacting with Arbitrum network.
+trust Arbitrum admins while using this bridge or while interacting with the Arbitrum network.
 
 ### Governance mistake during upgrade
 
 Bridge upgrade is not a trivial procedure due to the async messages between L1 and L2. The whole process is described in
 _Upgrade guide_ in this document.
 
-If governance spell mistakenly revokes old bridge approval to access escrow funds async withdrawal messages will fail.
-Fortunately, reverted messages can be replied at later date (for one week for L1 -> L2 messages), so governance has a
-chance to fix its mistake and process again pending messages.
+If a governance spell mistakenly revokes old bridge approval to access escrow funds, async withdrawal messages will fail.
+Fortunately, reverted messages can be retried at a later date (for one week for L1 -> L2 messages), so governance has a
+chance to fix its mistake and process pending messages again.
 
 ## Invariants
 
@@ -122,7 +122,7 @@ a) when depositing on L1, locking is instant but minting is an async message
 b) when withdrawing from L2, burning is instant but unlocking on L1 is an async message and is subject to a dispute
 period (1 week)
 
-c) someone can send L1DAI directly to the escrow
+c) someone can send L1 DAI directly to the escrow
 
 ## Running
 
@@ -134,7 +134,7 @@ yarn test  # runs unit tests
 
 ## Running E2E tests
 
-Arbitrum doesn't provide local dev environment so E2E tests are executed against Rinkeby network.
+Arbitrum doesn't provide local dev environment so E2E tests are executed against the Rinkeby network.
 
 ## Development
 
