@@ -17,6 +17,12 @@ Arbitrum Dai, upgradable token bridge and governance relay
 - `L1Escrow` - Hold funds on L1. Allows having many bridges coexist on L1 and share liquidity.
 - `L1GovernanceRelay` & `L2GovernanceRelay` - allows to execute a governance spell on L2.
 
+## Diagrams:
+
+![Basic deposit](docs/deposit.png?raw=true 'Basic deposit')
+
+[Full diagram](docs/full.png)
+
 ## Upgrade guide
 
 ### Deploying new token bridge
