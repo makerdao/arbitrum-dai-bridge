@@ -84,7 +84,7 @@ If (1) happens, an attacker can immediately drain L1 DAI from `L1Escrow`.
 
 If (2) happens, governance can disconnect `L1DAITokenBridge` from `L1Escrow` and prevent from stealing L1 DAI.
 
-** Malicious router**
+**Malicious router**
 
 `GatewayRouter` developed by Arbitrum team, is a privileged actor in our system and allows explicitly passing addresses
 that initiated deposits/withdrawals. It was reviewed by our team but if there is a bug in implementation it could in
@@ -93,8 +93,8 @@ that was already approved on L1). If it's malicious, it could be used to steal f
 
 ### Arbitrum upgrade
 
-Arbitrum contracts ARE upgradable. A malicuous upgrade could result in stealing user funds in many ways. Users need to
-trust Arbitrum admins while using this bridge or Arbitrum network.
+Arbitrum contracts ARE upgradable. A malicious upgrade could result in stealing user funds in many ways. Users need to
+trust Arbitrum admins while using this bridge or while interacting with Arbitrum network.
 
 ### Governance mistake during upgrade
 
@@ -102,8 +102,8 @@ Bridge upgrade is not a trivial procedure due to the async messages between L1 a
 _Upgrade guide_ in this document.
 
 If governance spell mistakenly revokes old bridge approval to access escrow funds async withdrawal messages will fail.
-Fortunately, reverted messages can be replied at later date (for one week for L1 -> L2 messages), so governance has to
-re-approve old `L1DaiGateway` to escrow funds and process again pending withdrawals.
+Fortunately, reverted messages can be replied at later date (for one week for L1 -> L2 messages), so governance has a
+chance to fix its mistake and process again pending messages.
 
 ## Invariants
 
