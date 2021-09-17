@@ -41,7 +41,15 @@ bridge continues to work as usual and it's impossible to be closed.
 
 ## Known Risks
 
-### Arbitrum's bug
+### Wrong parameters for xchain messages
+
+Arbitrum's xchain messages require
+[couple of arguments](https://developer.offchainlabs.com/docs/l1_l2_messages#parameters). We expose these in our public
+interfaces so it's up to the users to select appropriate values. Wrong values will cause a need to manually retry L1 ->
+L2 messages or in the worst case can cause that a message will be lost. This is especially difficult when interacting
+with `L1GovernanceRelay` via MakerDAO governance spells with a long delay (2 days).
+
+### Arbitrum bug
 
 In this section, we describe various risks caused by possible **bugs** in Arbitrum system.
 
@@ -62,7 +70,7 @@ required to send DAI back to rightful owners or redeploy Arbitrum system.
 
 Bug allowing to send arbitrary messages from L2 to L1 is potentially more harmful. This can happen two ways:
 
-1. Bug in `Ourbox` allows sending arbitrary messages on L1 bypassing the dispute period,
+1. Bug in `Outbox` allows sending arbitrary messages on L1 bypassing the dispute period,
 2. The fraud proof system stops working which allows submitting incorrect state root. Such state root can be used to
    proof an arbitrary message sent from L2 to L1. This will be a subject to a dispute period (1 week).
 
@@ -70,14 +78,17 @@ If (1) happens, an attacker can immediately drain L1 DAI from `L1Escrow`.
 
 If (2) happens, governance can disconnect `L1DAITokenBridge` from `L1Escrow` and prevent from stealing L1 DAI.
 
-** Malicious router and upgrade risk**
+** Malicious router**
 
 `GatewayRouter` developed by Arbitrum team, is a privileged actor in our system and allows explicitly passing addresses
-that initiated deposits/withdrawals. If it's malicious, it could be used to steal funds (burn arbitrary L2 DAI tokens
-and withdraw to any address, or steal DAI that was already approved on L1).
+that initiated deposits/withdrawals. It was reviewed by our team but if there is a bug in implementation it could in
+theory by used to steal funds from the escrow (burn arbitrary L2 DAI tokens and withdraw to any address, or steal DAI
+that was already approved on L1). If it's malicious, it could be used to steal funds.
 
-Finally, Arbitrum contracts ARE upgradable -- users need to trust Arbitrum admins while using this bridge and Arbitrum
-network.
+### Arbitrum upgrade
+
+Arbitrum contracts ARE upgradable. A malicuous upgrade could result in stealing user funds in many ways. Users need to
+trust Arbitrum admins while using this bridge or Arbitrum network.
 
 ### Governance mistake during upgrade
 
