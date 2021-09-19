@@ -27,9 +27,9 @@ Arbitrum Dai, upgradable token bridge and governance relay
 
 ### Deploying new token bridge
 
-This bridge stores funds in an external escrow account rather than on the bridge address itself. To upgrade, deploy the new
-bridge independently and connect it to the same escrow. Thanks to this, multiple bridges can operate at the same time (with
-potentially different interfaces), and no bridge will ever run out of funds.
+This bridge stores funds in an external escrow account rather than on the bridge address itself. To upgrade, deploy the
+new bridge independently and connect it to the same escrow. Thanks to this, multiple bridges can operate at the same
+time (with potentially different interfaces), and no bridge will ever run out of funds.
 
 ### Closing bridge
 
@@ -37,8 +37,8 @@ After deploying a new bridge, you might consider closing the old one. The proced
 messages (`finalizeInboundTransfer`) that can be in progress.
 
 An owner calls `L2DaiGateway.close()` and `L1DaiGateway.close()` so no new async messages can be sent to the other part
-of the bridge. After all async messages are done processing (can take up to 1 week), the bridge is effectively closed. Now, the
-owner can consider revoking approval to access funds from escrow on L1 and token minting rights on L2.
+of the bridge. After all async messages are done processing (can take up to 1 week), the bridge is effectively closed.
+Now, the owner can consider revoking approval to access funds from escrow on L1 and token minting rights on L2.
 
 ## Emergency shutdown
 
@@ -50,9 +50,9 @@ bridge continues to work as usual and it's impossible to close it.
 ### Wrong parameters for xchain messages
 
 Arbitrum's xchain messages require
-[a couple of arguments](https://developer.offchainlabs.com/docs/l1_l2_messages#parameters). We expose these in our public
-interfaces so it's up to the users to select appropriate values. Wrong values will cause a need to manually retry L1 ->
-L2 messages or in the worst case can cause a message to be lost. This is especially difficult when interacting
+[a couple of arguments](https://developer.offchainlabs.com/docs/l1_l2_messages#parameters). We expose these in our
+public interfaces so it's up to the users to select appropriate values. Wrong values will cause a need to manually retry
+L1 -> L2 messages or in the worst case can cause a message to be lost. This is especially difficult when interacting
 with `L1GovernanceRelay` via MakerDAO governance spells with a long delay (2 days).
 
 ### Arbitrum bug
@@ -88,8 +88,8 @@ If (2) happens, governance can disconnect `L1DAITokenBridge` from `L1Escrow` and
 
 `GatewayRouter` developed by Arbitrum team, is a privileged actor in our system and allows explicitly passing addresses
 that initiated deposits/withdrawals. It was reviewed by our team but if there is a bug in its implementation it could in
-theory be used to steal funds from the escrow (burn arbitrary L2 DAI tokens and withdraw them to any address, or steal DAI
-that was already approved on L1). If it's malicious, it could be used to steal funds.
+theory be used to steal funds from the escrow (burn arbitrary L2 DAI tokens and withdraw them to any address, or steal
+DAI that was already approved on L1). If it's malicious, it could be used to steal funds.
 
 ### Arbitrum upgrade
 
@@ -101,9 +101,9 @@ trust Arbitrum admins while using this bridge or while interacting with the Arbi
 Bridge upgrade is not a trivial procedure due to the async messages between L1 and L2. The whole process is described in
 _Upgrade guide_ in this document.
 
-If a governance spell mistakenly revokes old bridge approval to access escrow funds, async withdrawal messages will fail.
-Fortunately, reverted messages can be retried at a later date (for one week for L1 -> L2 messages), so governance has a
-chance to fix its mistake and process pending messages again.
+If a governance spell mistakenly revokes old bridge approval to access escrow funds, async withdrawal messages will
+fail. Fortunately, reverted messages can be retried at a later date (for one week for L1 -> L2 messages), so governance
+has a chance to fix its mistake and process pending messages again.
 
 ## Invariants
 
@@ -123,6 +123,22 @@ b) when withdrawing from L2, burning is instant but unlocking on L1 is an async 
 period (1 week)
 
 c) someone can send L1 DAI directly to the escrow
+
+## Deployments
+
+### Rinkeby
+
+```json
+{
+  "l1DaiGateway": "0x10E6593CDda8c58a1d0f14C5164B376352a55f2F",
+  "l1Escrow": "0x467194771dAe2967Aef3ECbEDD3Bf9a310C76C65",
+  "l2Dai": "0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1",
+  "l2DaiGateway": "0x467194771dAe2967Aef3ECbEDD3Bf9a310C76C65",
+  "l1Dai": "0xd9e66A2f546880EA4d800F189d6F12Cc15Bff281",
+  "l1GovRelay": "0x09B354CDA89203BB7B3131CC728dFa06ab09Ae2F",
+  "l2GovRelay": "0x10E6593CDda8c58a1d0f14C5164B376352a55f2F"
+}
+```
 
 ## Running
 
