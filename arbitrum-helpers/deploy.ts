@@ -93,6 +93,8 @@ export async function deployBridge(
       'Expected L2DAI address doesnt match with address that will be deployed',
     )
   }
+  expect(await deps.l1.deployer.getBalance()).to.not.be.eq(0, 'Not enough balance on L1')
+  expect(await deps.l2.deployer.getBalance()).to.not.be.eq(0, 'Not enough balance on L2')
 
   const l1Escrow = await deployUsingFactoryAndVerify(deps.l1.deployer, await ethers.getContractFactory('L1Escrow'), [])
   console.log('Deployed l1Escrow at: ', l1Escrow.address)
@@ -138,6 +140,7 @@ export async function deployBridge(
     [l1GovRelay.address],
   )
   expect(l2GovRelay.address).to.be.eq(l2GovRelayFutureAddr)
+  console.log('Deployed l2GovernanceRelay at: ', l2GovRelay.address)
 
   // permissions
   console.log('Setting permissions...')
