@@ -126,6 +126,20 @@ c) someone can send L1 DAI directly to the escrow
 
 ## Deployments
 
+### Mainnet
+
+```json
+{
+  "l1DaiGateway": "0xD3B5b60020504bc3489D6949d545893982BA3011",
+  "l1Escrow": "0xA10c7CE4b876998858b1a9E12b10092229539400",
+  "l2Dai": "0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1",
+  "l2DaiGateway": "0x467194771dAe2967Aef3ECbEDD3Bf9a310C76C65",
+  "l1Dai": "0x6B175474E89094C44Da98b954EedeAC495271d0F",
+  "l1GovRelay": "0x9ba25c289e351779E0D481Ba37489317c34A899d",
+  "l2GovRelay": "0x10E6593CDda8c58a1d0f14C5164B376352a55f2F"
+}
+```
+
 ### Rinkeby
 
 ```json
