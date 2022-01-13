@@ -26,7 +26,7 @@ interface Mintable {
   function burn(address usr, uint256 wad) external;
 }
 
-contract L2DAIWormholeBridge is L2CrossDomainEnabled {
+contract L2DaiWormholeGateway is L2CrossDomainEnabled {
   // --- Auth ---
   mapping(address => uint256) public wards;
 
