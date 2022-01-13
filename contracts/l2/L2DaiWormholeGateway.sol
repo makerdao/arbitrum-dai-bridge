@@ -41,7 +41,7 @@ contract L2DaiWormholeGateway is L2CrossDomainEnabled {
   }
 
   modifier auth() {
-    require(wards[msg.sender] == 1, "L2DAIWormholeBridge/not-authorized");
+    require(wards[msg.sender] == 1, "L2DaiWormholeGateway/not-authorized");
     _;
   }
 
@@ -85,11 +85,11 @@ contract L2DaiWormholeGateway is L2CrossDomainEnabled {
     uint256 data
   ) external auth {
     if (what == "validDomains") {
-      require(data <= 1, "L2DAIWormholeBridge/invalid-data");
+      require(data <= 1, "L2DaiWormholeGateway/invalid-data");
 
       validDomains[domain] = data;
     } else {
-      revert("L2DAIWormholeBridge/file-unrecognized-param");
+      revert("L2DaiWormholeGateway/file-unrecognized-param");
     }
     emit File(what, domain, data);
   }
@@ -101,10 +101,10 @@ contract L2DaiWormholeGateway is L2CrossDomainEnabled {
     address operator
   ) external {
     // Disallow initiating new wormhole transfer if bridge is closed
-    require(isOpen == 1, "L2DAIWormholeBridge/closed");
+    require(isOpen == 1, "L2DaiWormholeGateway/closed");
 
     // Disallow initiating new wormhole transfer if targetDomain has not been whitelisted
-    require(validDomains[targetDomain] == 1, "L2DAIWormholeBridge/invalid-domain");
+    require(validDomains[targetDomain] == 1, "L2DaiWormholeGateway/invalid-domain");
 
     WormholeGUID memory wormhole = WormholeGUID({
       sourceDomain: domain,
@@ -131,7 +131,7 @@ contract L2DaiWormholeGateway is L2CrossDomainEnabled {
   function flush(bytes32 targetDomain) external {
     // We do not check for valid domain because previously valid domains still need their DAI flushed
     uint256 daiToFlush = batchedDaiToFlush[targetDomain];
-    require(daiToFlush > 0, "L2DAIWormholeBridge/zero-dai-flush");
+    require(daiToFlush > 0, "L2DaiWormholeGateway/zero-dai-flush");
 
     batchedDaiToFlush[targetDomain] = 0;
 
