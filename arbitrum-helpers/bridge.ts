@@ -2,7 +2,7 @@ import { BigNumber, ethers, Wallet } from 'ethers'
 import { defaultAbiCoder } from 'ethers/lib/utils'
 
 import { waitForTx, waitToRelayTxsToL2 } from '../arbitrum-helpers'
-import { L1DaiGateway } from '../typechain-types
+import { L1DaiGateway } from '../typechain-types'
 import { getArbitrumCoreContracts } from './contracts'
 import { BridgeDeployment, NetworkConfig } from './deploy'
 
