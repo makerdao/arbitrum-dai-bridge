@@ -11,7 +11,7 @@ import { parseUnits } from 'ethers/lib/utils'
 import { ethers } from 'hardhat'
 
 import { deployArbitrumContractMock } from '../../arbitrum-helpers/mocks'
-import { L1GovernanceRelay__factory, L2GovernanceRelay__factory } from '../../typechain'
+import { L1GovernanceRelay__factory, L2GovernanceRelay__factory } from '../../typechain-types'
 
 const errorMessages = {
   invalidMessenger: 'OVM_XCHAIN: messenger contract unauthenticated',

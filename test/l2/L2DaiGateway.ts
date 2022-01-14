@@ -13,7 +13,7 @@ import { ethers } from 'hardhat'
 
 import { getL2SignerFromL1 } from '../../arbitrum-helpers/messaging'
 import { deployArbitrumContractMock } from '../../arbitrum-helpers/mocks'
-import { Dai__factory, L1DaiGateway__factory, L2DaiGateway__factory } from '../../typechain'
+import { Dai__factory, L1DaiGateway__factory, L2DaiGateway__factory } from '../../typechain-types'
 
 const initialTotalL2Supply = 3000
 const errorMessages = {

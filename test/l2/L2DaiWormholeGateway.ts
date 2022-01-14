@@ -4,7 +4,7 @@ import { expect } from 'chai'
 import { ethers } from 'hardhat'
 
 import { deployArbitrumContractMock } from '../../arbitrum-helpers/mocks'
-import { Dai__factory, L2DaiWormholeGateway__factory } from '../../typechain'
+import { Dai__factory, L2DaiWormholeGateway__factory } from '../../typechain-types'
 import { deployMock } from '../helpers'
 
 const INITIAL_L2_DAI_SUPPLY = 3000

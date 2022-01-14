@@ -4,7 +4,12 @@ import { expect } from 'chai'
 import { ethers } from 'hardhat'
 
 import { getL2SignerFromL1 } from '../../arbitrum-helpers/messaging'
-import { BadSpell__factory, Dai__factory, L2GovernanceRelay__factory, TestDaiMintSpell__factory } from '../../typechain'
+import {
+  BadSpell__factory,
+  Dai__factory,
+  L2GovernanceRelay__factory,
+  TestDaiMintSpell__factory,
+} from '../../typechain-types'
 
 const errorMessages = {
   l1CounterpartMismatch: 'ONLY_COUNTERPART_GATEWAY',
