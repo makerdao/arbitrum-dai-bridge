@@ -1,11 +1,4 @@
-import {
-  assertPublicMutableMethods,
-  assertPublicNotMutableMethods,
-  getRandomAddress,
-  getRandomAddresses,
-  simpleDeploy,
-  testAuth,
-} from '@makerdao/hardhat-utils'
+import { getRandomAddress, getRandomAddresses, simpleDeploy, testAuth } from '@makerdao/hardhat-utils'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/dist/src/signer-with-address'
 import { expect } from 'chai'
 import { defaultAbiCoder, parseUnits } from 'ethers/lib/utils'
@@ -13,6 +6,7 @@ import { ethers } from 'hardhat'
 
 import { deployArbitrumContractMock } from '../../arbitrum-helpers/mocks'
 import { Dai__factory, L1DaiGateway__factory, L2DaiGateway__factory } from '../../typechain-types'
+import { assertPublicMethods, MUTABLE_FUNCTION_FILTER, NON_MUTABLE_FUNCTION_FILTER } from '../helpers'
 
 const initialTotalL1Supply = 3000
 const errorMessages = {
@@ -593,29 +587,37 @@ describe('L1DaiGateway', () => {
   })
 
   it('has correct public interface', async () => {
-    await assertPublicMutableMethods('L1DaiGateway', [
-      'finalizeInboundTransfer(address,address,address,uint256,bytes)', // withdraw
-      'outboundTransfer(address,address,uint256,uint256,uint256,bytes)', // deposit
-      'close()',
-      'deny(address)',
-      'rely(address)',
-    ])
+    await assertPublicMethods(
+      'L1DaiGateway',
+      [
+        'finalizeInboundTransfer(address,address,address,uint256,bytes)', // withdraw
+        'outboundTransfer(address,address,uint256,uint256,uint256,bytes)', // deposit
+        'close()',
+        'deny(address)',
+        'rely(address)',
+      ],
+      MUTABLE_FUNCTION_FILTER,
+    )
 
-    await assertPublicNotMutableMethods('L1DaiGateway', [
-      'calculateL2TokenAddress(address)',
-      'getOutboundCalldata(address,address,address,uint256,bytes)',
+    await assertPublicMethods(
+      'L1DaiGateway',
+      [
+        'calculateL2TokenAddress(address)',
+        'getOutboundCalldata(address,address,address,uint256,bytes)',
 
-      // storage variables:
-      'inbox()',
-      'isOpen()',
-      'l1Dai()',
-      'l1Escrow()',
-      'l1Router()',
-      'l2Counterpart()',
-      'l2Dai()',
-      'wards(address)',
-      'counterpartGateway()',
-    ])
+        // storage variables:
+        'inbox()',
+        'isOpen()',
+        'l1Dai()',
+        'l1Escrow()',
+        'l1Router()',
+        'l2Counterpart()',
+        'l2Dai()',
+        'wards(address)',
+        'counterpartGateway()',
+      ],
+      NON_MUTABLE_FUNCTION_FILTER,
+    )
   })
 
   testAuth({
