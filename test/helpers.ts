@@ -24,3 +24,7 @@ export async function deployAbstractMock<T extends ContractFactory>(
   const contract = (await ethers.getContractAt(name, opts.address)) as any
   return await smockit(contract, opts)
 }
+
+export function addressToBytes32(addr: string): string {
+  return ethers.utils.hexlify(ethers.utils.zeroPad(addr, 32))
+}

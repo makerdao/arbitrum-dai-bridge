@@ -16,7 +16,7 @@
 pragma solidity ^0.6.11;
 pragma experimental ABIEncoderV2;
 
-import {WormholeGUID} from "../common/WormholeGUID.sol";
+import {WormholeGUID, WormholeGUIDHelper} from "../common/WormholeGUID.sol";
 import {L1DaiWormholeGateway} from "../l1/L1DaiWormholeGateway.sol";
 import "./L2CrossDomainEnabled.sol";
 
@@ -100,6 +100,30 @@ contract L2DaiWormholeGateway is L2CrossDomainEnabled {
     uint128 amount,
     address operator
   ) external {
+    return
+      _initiateWormhole(
+        targetDomain,
+        WormholeGUIDHelper.addressToBytes32(receiver),
+        amount,
+        WormholeGUIDHelper.addressToBytes32(operator)
+      );
+  }
+
+  function initiateWormhole(
+    bytes32 targetDomain,
+    bytes32 receiver,
+    uint128 amount,
+    bytes32 operator
+  ) external {
+    return _initiateWormhole(targetDomain, receiver, amount, operator);
+  }
+
+  function _initiateWormhole(
+    bytes32 targetDomain,
+    bytes32 receiver,
+    uint128 amount,
+    bytes32 operator
+  ) private {
     // Disallow initiating new wormhole transfer if bridge is closed
     require(isOpen == 1, "L2DaiWormholeGateway/closed");
 

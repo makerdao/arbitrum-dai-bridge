@@ -6,7 +6,7 @@ import { ethers } from 'hardhat'
 import { deployArbitrumContractMock } from '../../arbitrum-helpers/mocks'
 import { Dai__factory, L1DaiWormholeGateway__factory, L1Escrow__factory } from '../../typechain-types'
 import { WormholeGUIDStruct } from '../../typechain-types/L1DaiWormholeGateway'
-import { deployAbstractMock, deployMock } from '../helpers'
+import { addressToBytes32, deployAbstractMock, deployMock } from '../helpers'
 
 const INITIAL_ESCROW_BALANCE = 3000
 const SOURCE_DOMAIN_NAME = ethers.utils.formatBytes32String('optimism-a')
@@ -22,7 +22,7 @@ describe('L1DaiWormholeGateway', () => {
   it('has correct public interface', async () => {
     await assertPublicMutableMethods('L1DaiWormholeGateway', [
       'finalizeFlush(bytes32,uint256)',
-      'finalizeRegisterWormhole((bytes32,bytes32,address,address,uint128,uint80,uint48))',
+      'finalizeRegisterWormhole((bytes32,bytes32,bytes32,bytes32,uint128,uint80,uint48))',
     ])
   })
 
@@ -103,8 +103,8 @@ describe('L1DaiWormholeGateway', () => {
       wormhole = {
         sourceDomain: SOURCE_DOMAIN_NAME,
         targetDomain: TARGET_DOMAIN_NAME,
-        receiver: receiver,
-        operator: receiver,
+        receiver: addressToBytes32(receiver),
+        operator: addressToBytes32(receiver),
         amount: AMOUNT,
         nonce: 0,
         timestamp: '1639583731',
