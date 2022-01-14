@@ -31,25 +31,27 @@ export function addressToBytes32(addr: string): string {
   return ethers.utils.hexlify(ethers.utils.zeroPad(addr, 32))
 }
 
-export const MUTABLE_FUNCTION_FILTER = (f: FunctionFragment) => {
-  return (
-    !f.format().startsWith('c_0x') && // filter out instrumented methods
-    (f.stateMutability === 'nonpayable' || f.stateMutability === 'payable')
-  )
-}
+type FunctionFilter = (f: FunctionFragment) => boolean
 
-export const NON_MUTABLE_FUNCTION_FILTER = (f: FunctionFragment) => {
+export const NON_INSTRUMENTED_FUNCTION_FILTER: FunctionFilter = (f) => !f.format().startsWith('c_0x')
+export const NON_MUTABLE_FUNCTION_FILTER: FunctionFilter = (f) => {
   return (
-    !f.format().startsWith('c_0x') && // filter out instrumented methods
+    NON_INSTRUMENTED_FUNCTION_FILTER(f) && // filter out instrumented methods
     f.stateMutability !== 'nonpayable' &&
     f.stateMutability !== 'payable'
+  )
+}
+export const MUTABLE_FUNCTION_FILTER: FunctionFilter = (f) => {
+  return (
+    NON_INSTRUMENTED_FUNCTION_FILTER(f) && // filter out instrumented methods
+    (f.stateMutability === 'nonpayable' || f.stateMutability === 'payable')
   )
 }
 
 export async function assertPublicMethods(
   name: string,
   expectedPublicMethods: string[],
-  filter: (f: FunctionFragment) => boolean = (f) => !f.format().startsWith('c_0x'),
+  filter: FunctionFilter = NON_INSTRUMENTED_FUNCTION_FILTER,
 ) {
   const contract = await ethers.getContractFactory(name)
   const allModifiableFns = Object.values(contract.interface.functions)
