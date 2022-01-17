@@ -5,7 +5,7 @@
   "scripts": {
     "build": "hardhat compile",
     "clean": "hardhat clean && rm -rf artifacts cache crytic-export corpus",
-    "coverage": "hardhat coverage && istanbul check-coverage --branches 96 --lines 98",
+    "coverage": "hardhat coverage && istanbul check-coverage --branches 96 --lines 99",
     "format": "prettier --check \"./**/*.{ts,sol}\"",
     "format:fix": "prettier --write \"./**/*.{ts,sol}\"",
     "lint": "eslint --ext .ts test test-e2e arbitrum-helpers scripts hardhat.config.ts",
