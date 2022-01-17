@@ -27,6 +27,12 @@ describe('L2DaiGateway', () => {
     const depositAmount = 100
     const defaultData = ethers.utils.defaultAbiCoder.encode(['bytes', 'bytes'], ['0x12', '0x'])
 
+    it('returns the correct counterpartGateway', async () => {
+      const [l1DaiBridge, l1Dai, router, deployer] = await ethers.getSigners()
+      const { l2DaiGateway } = await setupTest({ l1Dai, l1DaiBridge, router, deployer })
+      expect(await l2DaiGateway.counterpartGateway()).to.be.eq(l1DaiBridge.address)
+    })
+
     it('mints tokens', async () => {
       const [sender, l1Dai, router] = await ethers.getSigners()
       const { l2Dai, l2DaiGateway, l2Deployer } = await setupTest({

@@ -25,6 +25,12 @@ const errorMessages = {
 }
 
 describe('L1DaiGateway', () => {
+  it('returns the correct counterpartGateway', async () => {
+    const [l2DaiGateway, l1Escrow, inboxImpersonator, router, user1] = await ethers.getSigners()
+    const { l1DaiGateway } = await setupTest({ inboxImpersonator, l1Escrow, l2DaiGateway, router, user1 })
+    expect(await l1DaiGateway.counterpartGateway()).to.be.eq(l2DaiGateway.address)
+  })
+
   describe('outboundTransfer()', () => {
     const depositAmount = 100
     const defaultGas = 42
