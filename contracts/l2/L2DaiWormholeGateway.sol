@@ -97,6 +97,15 @@ contract L2DaiWormholeGateway is L2CrossDomainEnabled {
   function initiateWormhole(
     bytes32 targetDomain,
     address receiver,
+    uint128 amount
+  ) external {
+    return
+      _initiateWormhole(targetDomain, WormholeGUIDHelper.addressToBytes32(receiver), amount, 0);
+  }
+
+  function initiateWormhole(
+    bytes32 targetDomain,
+    address receiver,
     uint128 amount,
     address operator
   ) external {

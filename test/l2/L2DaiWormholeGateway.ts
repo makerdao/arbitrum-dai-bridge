@@ -31,6 +31,7 @@ describe('L2DaiWormholeGateway', () => {
       'deny(address)',
       'close()',
       'file(bytes32,bytes32,uint256)',
+      'initiateWormhole(bytes32,address,uint128)',
       'initiateWormhole(bytes32,address,uint128,address)',
       'initiateWormhole(bytes32,bytes32,uint128,bytes32)',
       'flush(bytes32)',
@@ -100,6 +101,36 @@ describe('L2DaiWormholeGateway', () => {
       const [_owner, user1] = await ethers.getSigners()
       const { l2DaiWormholeGateway } = await setupTest({ user1 })
       await expect(l2DaiWormholeGateway.connect(user1).close()).to.be.revertedWith(errorMessages.notOwner)
+    })
+  })
+
+  describe('initiateWormhole(bytes32,address,uint128)', () => {
+    it('sends xchain message, burns DAI and marks it for future flush', async () => {
+      const [_, user1] = await ethers.getSigners()
+      const { l2Dai, l2DaiWormholeGateway, l1DaiWormholeGatewayMock, arbSysMock } = await setupTest({ user1 })
+
+      const initTx = await l2DaiWormholeGateway
+        .connect(user1)
+        ['initiateWormhole(bytes32,address,uint128)'](TARGET_DOMAIN_NAME, user1.address, WORMHOLE_AMOUNT)
+      const arbSysSendTxToL1CallData = arbSysMock.smocked.sendTxToL1.calls[0]
+
+      const wormhole = {
+        sourceDomain: SOURCE_DOMAIN_NAME,
+        targetDomain: TARGET_DOMAIN_NAME,
+        receiver: addressToBytes32(user1.address),
+        operator: addressToBytes32(ethers.constants.AddressZero),
+        amount: WORMHOLE_AMOUNT,
+        nonce: 0,
+        timestamp: (await ethers.provider.getBlock(initTx.blockNumber as any)).timestamp,
+      }
+      expect(await l2Dai.balanceOf(user1.address)).to.eq(INITIAL_L2_DAI_SUPPLY - WORMHOLE_AMOUNT)
+      expect(await l2Dai.totalSupply()).to.equal(INITIAL_L2_DAI_SUPPLY - WORMHOLE_AMOUNT)
+      expect(await l2DaiWormholeGateway.batchedDaiToFlush(TARGET_DOMAIN_NAME)).to.eq(WORMHOLE_AMOUNT)
+      expect(arbSysSendTxToL1CallData.destAddr).to.equal(l1DaiWormholeGatewayMock.address)
+      expect(arbSysSendTxToL1CallData.calldataForL1).to.equal(
+        l1DaiWormholeGatewayMock.interface.encodeFunctionData('finalizeRegisterWormhole', [wormhole]),
+      )
+      await expect(initTx).to.emit(l2DaiWormholeGateway, 'WormholeInitialized').withArgs(Object.values(wormhole))
     })
   })
 
