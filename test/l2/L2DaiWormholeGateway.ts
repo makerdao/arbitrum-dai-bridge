@@ -48,7 +48,7 @@ describe('L2DaiWormholeGateway', () => {
         SOURCE_DOMAIN_NAME,
       ])
 
-      // expect(await l2DaiWormholeGateway.messenger()).to.eq(l2Messenger.address)
+      expect(await l2DaiWormholeGateway.domain()).to.eq(SOURCE_DOMAIN_NAME)
       expect(await l2DaiWormholeGateway.l2Token()).to.eq(l2Dai.address)
       expect(await l2DaiWormholeGateway.l1DaiWormholeGateway()).to.eq(l1DaiWormholeGateway.address)
     })
