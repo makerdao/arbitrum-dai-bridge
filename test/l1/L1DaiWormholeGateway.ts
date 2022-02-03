@@ -127,6 +127,7 @@ describe('L1DaiWormholeGateway', () => {
         JSON.stringify(Object.values(wormhole).map((v: any) => v.toString())),
       )
       expect(routerSettleCallData.maxFeePercentage).to.equal(0)
+      expect(routerSettleCallData.operatorFee).to.equal(0)
     })
 
     it('reverts when not called by the bridge', async () => {
