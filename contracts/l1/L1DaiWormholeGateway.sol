@@ -21,7 +21,11 @@ import "./L1CrossDomainEnabled.sol";
 import {WormholeGUID} from "../common/WormholeGUID.sol";
 
 interface WormholeRouter {
-  function requestMint(WormholeGUID calldata wormholeGUID, uint256 maxFeePercentage) external;
+  function requestMint(
+    WormholeGUID calldata wormholeGUID,
+    uint256 maxFeePercentage,
+    uint256 operatorFee
+  ) external;
 
   function settle(bytes32 targetDomain, uint256 batchedDaiToFlush) external;
 }
@@ -71,6 +75,6 @@ contract L1DaiWormholeGateway is L1CrossDomainEnabled {
     external
     onlyL2Counterpart(l2DaiWormholeGateway)
   {
-    wormholeRouter.requestMint(wormhole, 0);
+    wormholeRouter.requestMint(wormhole, 0, 0);
   }
 }
