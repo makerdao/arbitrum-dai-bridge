@@ -25,7 +25,7 @@ interface WormholeRouter {
     WormholeGUID calldata wormholeGUID,
     uint256 maxFeePercentage,
     uint256 operatorFee
-  ) external returns (uint256 postFeeAmount, uint256 totalFee);
+  ) external;
 
   function settle(bytes32 targetDomain, uint256 batchedDaiToFlush) external;
 }
