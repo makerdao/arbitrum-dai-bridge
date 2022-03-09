@@ -50,15 +50,15 @@ contract L1DaiWormholeGateway is L1CrossDomainEnabled {
     address _l1Token,
     address _l2DaiWormholeGateway,
     address _inbox,
-    address _escrow,
-    address _wormholeRouter
+    address _l1Escrow,
+    address _l1WormholeRouter
   ) public L1CrossDomainEnabled(_inbox) {
     l1Token = _l1Token;
     l2DaiWormholeGateway = _l2DaiWormholeGateway;
-    l1Escrow = _escrow;
-    l1WormholeRouter = WormholeRouter(_wormholeRouter);
+    l1Escrow = _l1Escrow;
+    l1WormholeRouter = WormholeRouter(_l1WormholeRouter);
     // Approve the router to pull DAI from this contract during settle() (after the DAI has been pulled by this contract from the escrow)
-    TokenLike(_l1Token).approve(_wormholeRouter, type(uint256).max);
+    TokenLike(_l1Token).approve(_l1WormholeRouter, type(uint256).max);
   }
 
   function finalizeFlush(bytes32 targetDomain, uint256 daiToFlush)
