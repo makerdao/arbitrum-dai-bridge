@@ -43,8 +43,8 @@ interface TokenLike {
 contract L1DaiWormholeGateway is L1CrossDomainEnabled {
   address public immutable l1Token;
   address public immutable l2DaiWormholeGateway;
-  address public immutable escrow;
-  WormholeRouter public immutable wormholeRouter;
+  address public immutable l1Escrow;
+  WormholeRouter public immutable l1WormholeRouter;
 
   constructor(
     address _l1Token,
@@ -55,8 +55,8 @@ contract L1DaiWormholeGateway is L1CrossDomainEnabled {
   ) public L1CrossDomainEnabled(_inbox) {
     l1Token = _l1Token;
     l2DaiWormholeGateway = _l2DaiWormholeGateway;
-    escrow = _escrow;
-    wormholeRouter = WormholeRouter(_wormholeRouter);
+    l1Escrow = _escrow;
+    l1WormholeRouter = WormholeRouter(_wormholeRouter);
     // Approve the router to pull DAI from this contract during settle() (after the DAI has been pulled by this contract from the escrow)
     TokenLike(_l1Token).approve(_wormholeRouter, type(uint256).max);
   }
@@ -66,15 +66,15 @@ contract L1DaiWormholeGateway is L1CrossDomainEnabled {
     onlyL2Counterpart(l2DaiWormholeGateway)
   {
     // Pull DAI from the escrow to this contract
-    TokenLike(l1Token).transferFrom(escrow, address(this), daiToFlush);
+    TokenLike(l1Token).transferFrom(l1Escrow, address(this), daiToFlush);
     // The router will pull the DAI from this contract
-    wormholeRouter.settle(targetDomain, daiToFlush);
+    l1WormholeRouter.settle(targetDomain, daiToFlush);
   }
 
   function finalizeRegisterWormhole(WormholeGUID calldata wormhole)
     external
     onlyL2Counterpart(l2DaiWormholeGateway)
   {
-    wormholeRouter.requestMint(wormhole, 0, 0);
+    l1WormholeRouter.requestMint(wormhole, 0, 0);
   }
 }
