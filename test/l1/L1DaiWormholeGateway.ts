@@ -42,9 +42,9 @@ describe('L1DaiWormholeGateway', () => {
       // Check that all variables have been assigned correctly
       expect(await l1DaiWormholeGateway.l1Token()).to.eq(l1Dai.address)
       expect(await l1DaiWormholeGateway.l2DaiWormholeGateway()).to.eq(l2DaiWormholeGateway.address)
-      expect(await l1DaiWormholeGateway.escrow()).to.eq(l1Escrow.address)
+      expect(await l1DaiWormholeGateway.l1Escrow()).to.eq(l1Escrow.address)
       expect(await l1DaiWormholeGateway.inbox()).to.eq(inbox.address)
-      expect(await l1DaiWormholeGateway.wormholeRouter()).to.eq(wormholeRouter.address)
+      expect(await l1DaiWormholeGateway.l1WormholeRouter()).to.eq(wormholeRouter.address)
       // Check that the wormholeRouter has been given infinite approval
       expect(await l1Dai.allowance(l1DaiWormholeGateway.address, wormholeRouter.address)).to.eq(
         ethers.constants.MaxUint256,
