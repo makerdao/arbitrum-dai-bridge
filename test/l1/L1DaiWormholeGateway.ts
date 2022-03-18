@@ -41,7 +41,7 @@ describe('L1DaiWormholeGateway', () => {
 
       // Check that all variables have been assigned correctly
       expect(await l1DaiWormholeGateway.l1Token()).to.eq(l1Dai.address)
-      expect(await l1DaiWormholeGateway.l2DaiWormholeGateway()).to.eq(l2DaiWormholeGateway.address)
+      expect(await l1DaiWormholeGateway.l2WormholeGateway()).to.eq(l2DaiWormholeGateway.address)
       expect(await l1DaiWormholeGateway.l1Escrow()).to.eq(l1Escrow.address)
       expect(await l1DaiWormholeGateway.inbox()).to.eq(inbox.address)
       expect(await l1DaiWormholeGateway.l1WormholeRouter()).to.eq(wormholeRouter.address)
@@ -176,7 +176,7 @@ describe('L1DaiWormholeGateway', () => {
     inboxMock.smocked.bridge.will.return.with(bridgeMock.address)
     bridgeMock.smocked.activeOutbox.will.return.with(outboxMock.address)
 
-    const wormholeRouterMock = await deployAbstractMock('WormholeRouter')
+    const wormholeRouterMock = await deployAbstractMock('IL1WormholeRouter')
     const l2DaiWormholeGateway = await deployMock('L2DaiWormholeGateway')
     const l1Dai = await simpleDeploy<Dai__factory>('Dai', [])
     const l1Escrow = await simpleDeploy<L1Escrow__factory>('L1Escrow', [])
