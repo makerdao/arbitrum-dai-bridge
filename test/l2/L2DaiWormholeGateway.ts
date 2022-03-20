@@ -50,7 +50,7 @@ describe('L2DaiWormholeGateway', () => {
 
       expect(await l2DaiWormholeGateway.domain()).to.eq(SOURCE_DOMAIN_NAME)
       expect(await l2DaiWormholeGateway.l2Token()).to.eq(l2Dai.address)
-      expect(await l2DaiWormholeGateway.l1DaiWormholeGateway()).to.eq(l1DaiWormholeGateway.address)
+      expect(await l2DaiWormholeGateway.l1WormholeGateway()).to.eq(l1DaiWormholeGateway.address)
     })
   })
 
