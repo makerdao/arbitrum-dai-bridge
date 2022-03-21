@@ -1,19 +1,13 @@
 import { defaultAbiCoder } from '@ethersproject/abi'
-import {
-  assertPublicMutableMethods,
-  assertPublicNotMutableMethods,
-  getRandomAddress,
-  getRandomAddresses,
-  simpleDeploy,
-  testAuth,
-} from '@makerdao/hardhat-utils'
+import { getRandomAddress, getRandomAddresses, simpleDeploy, testAuth } from '@makerdao/hardhat-utils'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect } from 'chai'
 import { ethers } from 'hardhat'
 
 import { getL2SignerFromL1 } from '../../arbitrum-helpers/messaging'
 import { deployArbitrumContractMock } from '../../arbitrum-helpers/mocks'
-import { Dai__factory, L1DaiGateway__factory, L2DaiGateway__factory } from '../../typechain'
+import { Dai__factory, L1DaiGateway__factory, L2DaiGateway__factory } from '../../typechain-types'
+import { assertPublicMethods, MUTABLE_FUNCTION_FILTER, NON_MUTABLE_FUNCTION_FILTER } from '../helpers'
 
 const initialTotalL2Supply = 3000
 const errorMessages = {
@@ -32,6 +26,12 @@ describe('L2DaiGateway', () => {
   describe('finalizeInboundTransfer', () => {
     const depositAmount = 100
     const defaultData = ethers.utils.defaultAbiCoder.encode(['bytes', 'bytes'], ['0x12', '0x'])
+
+    it('returns the correct counterpartGateway', async () => {
+      const [l1DaiBridge, l1Dai, router, deployer] = await ethers.getSigners()
+      const { l2DaiGateway } = await setupTest({ l1Dai, l1DaiBridge, router, deployer })
+      expect(await l2DaiGateway.counterpartGateway()).to.be.eq(l1DaiBridge.address)
+    })
 
     it('mints tokens', async () => {
       const [sender, l1Dai, router] = await ethers.getSigners()
@@ -525,27 +525,35 @@ describe('L2DaiGateway', () => {
   })
 
   it('has correct public interface', async () => {
-    await assertPublicMutableMethods('L2DaiGateway', [
-      'finalizeInboundTransfer(address,address,address,uint256,bytes)', // finalize deposit
-      'outboundTransfer(address,address,uint256,bytes)', // withdraw
-      'outboundTransfer(address,address,uint256,uint256,uint256,bytes)', // withdrawTo
-      'close()',
-      'rely(address)',
-      'deny(address)',
-    ])
-    await assertPublicNotMutableMethods('L2DaiGateway', [
-      'getOutboundCalldata(address,address,address,uint256,bytes)',
-      'calculateL2TokenAddress(address)',
+    await assertPublicMethods(
+      'L2DaiGateway',
+      [
+        'finalizeInboundTransfer(address,address,address,uint256,bytes)', // finalize deposit
+        'outboundTransfer(address,address,uint256,bytes)', // withdraw
+        'outboundTransfer(address,address,uint256,uint256,uint256,bytes)', // withdrawTo
+        'close()',
+        'rely(address)',
+        'deny(address)',
+      ],
+      MUTABLE_FUNCTION_FILTER,
+    )
+    await assertPublicMethods(
+      'L2DaiGateway',
+      [
+        'getOutboundCalldata(address,address,address,uint256,bytes)',
+        'calculateL2TokenAddress(address)',
 
-      // storage variables:
-      'l1Counterpart()',
-      'isOpen()',
-      'l1Dai()',
-      'l2Dai()',
-      'l2Router()',
-      'wards(address)',
-      'counterpartGateway()',
-    ])
+        // storage variables:
+        'l1Counterpart()',
+        'isOpen()',
+        'l1Dai()',
+        'l2Dai()',
+        'l2Router()',
+        'wards(address)',
+        'counterpartGateway()',
+      ],
+      NON_MUTABLE_FUNCTION_FILTER,
+    )
   })
 
   testAuth({

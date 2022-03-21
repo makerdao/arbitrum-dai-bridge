@@ -2,5 +2,5 @@ node_modules
 .vscode
 package.json
 dist
-typechain
+typechain-types
 dai.sol

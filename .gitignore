@@ -1,7 +1,7 @@
 node_modules/
 /artifacts/
 /cache/
-typechain
+typechain-types
 crytic-export/
 .env
 gasReporterOutput.json
