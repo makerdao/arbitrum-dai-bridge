@@ -19,16 +19,7 @@ pragma experimental ABIEncoderV2;
 
 import "./L1CrossDomainEnabled.sol";
 import {WormholeGUID} from "../common/WormholeGUID.sol";
-
-interface WormholeRouter {
-  function requestMint(
-    WormholeGUID calldata wormholeGUID,
-    uint256 maxFeePercentage,
-    uint256 operatorFee
-  ) external returns (uint256 postFeeAmount, uint256 totalFee);
-
-  function settle(bytes32 targetDomain, uint256 batchedDaiToFlush) external;
-}
+import {IL1WormholeGateway, IL1WormholeRouter} from "../common/WormholeInterfaces.sol";
 
 interface TokenLike {
   function approve(address, uint256) external returns (bool);
@@ -40,30 +31,31 @@ interface TokenLike {
   ) external returns (bool success);
 }
 
-contract L1DaiWormholeGateway is L1CrossDomainEnabled {
-  address public immutable l1Token;
-  address public immutable l2DaiWormholeGateway;
-  address public immutable l1Escrow;
-  WormholeRouter public immutable l1WormholeRouter;
+contract L1DaiWormholeGateway is L1CrossDomainEnabled, IL1WormholeGateway {
+  address public immutable override l1Token;
+  address public immutable override l2WormholeGateway;
+  address public immutable override l1Escrow;
+  IL1WormholeRouter public immutable override l1WormholeRouter;
 
   constructor(
     address _l1Token,
-    address _l2DaiWormholeGateway,
+    address _l2WormholeGateway,
     address _inbox,
     address _l1Escrow,
     address _l1WormholeRouter
   ) public L1CrossDomainEnabled(_inbox) {
     l1Token = _l1Token;
-    l2DaiWormholeGateway = _l2DaiWormholeGateway;
+    l2WormholeGateway = _l2WormholeGateway;
     l1Escrow = _l1Escrow;
-    l1WormholeRouter = WormholeRouter(_l1WormholeRouter);
+    l1WormholeRouter = IL1WormholeRouter(_l1WormholeRouter);
     // Approve the router to pull DAI from this contract during settle() (after the DAI has been pulled by this contract from the escrow)
     TokenLike(_l1Token).approve(_l1WormholeRouter, type(uint256).max);
   }
 
   function finalizeFlush(bytes32 targetDomain, uint256 daiToFlush)
     external
-    onlyL2Counterpart(l2DaiWormholeGateway)
+    override
+    onlyL2Counterpart(l2WormholeGateway)
   {
     // Pull DAI from the escrow to this contract
     TokenLike(l1Token).transferFrom(l1Escrow, address(this), daiToFlush);
@@ -73,7 +65,8 @@ contract L1DaiWormholeGateway is L1CrossDomainEnabled {
 
   function finalizeRegisterWormhole(WormholeGUID calldata wormhole)
     external
-    onlyL2Counterpart(l2DaiWormholeGateway)
+    override
+    onlyL2Counterpart(l2WormholeGateway)
   {
     l1WormholeRouter.requestMint(wormhole, 0, 0);
   }

@@ -17,7 +17,7 @@ pragma solidity ^0.6.11;
 pragma experimental ABIEncoderV2;
 
 import {WormholeGUID, WormholeGUIDHelper} from "../common/WormholeGUID.sol";
-import {L1DaiWormholeGateway} from "../l1/L1DaiWormholeGateway.sol";
+import {IL1WormholeGateway, IL2WormholeGateway} from "../common/WormholeInterfaces.sol";
 import "./L2CrossDomainEnabled.sol";
 
 interface Mintable {
@@ -26,7 +26,7 @@ interface Mintable {
   function burn(address usr, uint256 wad) external;
 }
 
-contract L2DaiWormholeGateway is L2CrossDomainEnabled {
+contract L2DaiWormholeGateway is L2CrossDomainEnabled, IL2WormholeGateway {
   // --- Auth ---
   mapping(address => uint256) public wards;
 
@@ -45,9 +45,9 @@ contract L2DaiWormholeGateway is L2CrossDomainEnabled {
     _;
   }
 
-  address public immutable l2Token;
-  address public immutable l1DaiWormholeGateway;
-  bytes32 public immutable domain;
+  address public immutable override l2Token;
+  address public immutable override l1WormholeGateway;
+  bytes32 public immutable override domain;
   uint256 public isOpen = 1;
   uint80 public nonce;
   mapping(bytes32 => uint256) public validDomains;
@@ -57,19 +57,17 @@ contract L2DaiWormholeGateway is L2CrossDomainEnabled {
   event Rely(address indexed usr);
   event Deny(address indexed usr);
   event File(bytes32 indexed what, bytes32 indexed domain, uint256 data);
-  event WormholeInitialized(WormholeGUID wormhole);
-  event Flushed(bytes32 indexed targetDomain, uint256 dai);
 
   constructor(
     address _l2Token,
-    address _l1DaiWormholeGateway,
+    address _l1WormholeGateway,
     bytes32 _domain
   ) public {
     wards[msg.sender] = 1;
     emit Rely(msg.sender);
 
     l2Token = _l2Token;
-    l1DaiWormholeGateway = _l1DaiWormholeGateway;
+    l1WormholeGateway = _l1WormholeGateway;
     domain = _domain;
   }
 
@@ -98,7 +96,7 @@ contract L2DaiWormholeGateway is L2CrossDomainEnabled {
     bytes32 targetDomain,
     address receiver,
     uint128 amount
-  ) external {
+  ) external override {
     return
       _initiateWormhole(targetDomain, WormholeGUIDHelper.addressToBytes32(receiver), amount, 0);
   }
@@ -108,7 +106,7 @@ contract L2DaiWormholeGateway is L2CrossDomainEnabled {
     address receiver,
     uint128 amount,
     address operator
-  ) external {
+  ) external override {
     return
       _initiateWormhole(
         targetDomain,
@@ -123,7 +121,7 @@ contract L2DaiWormholeGateway is L2CrossDomainEnabled {
     bytes32 receiver,
     uint128 amount,
     bytes32 operator
-  ) external {
+  ) external override {
     return _initiateWormhole(targetDomain, receiver, amount, operator);
   }
 
@@ -153,15 +151,15 @@ contract L2DaiWormholeGateway is L2CrossDomainEnabled {
     Mintable(l2Token).burn(msg.sender, amount);
 
     bytes memory message = abi.encodeWithSelector(
-      L1DaiWormholeGateway.finalizeRegisterWormhole.selector,
+      IL1WormholeGateway.finalizeRegisterWormhole.selector,
       wormhole
     );
-    sendTxToL1(msg.sender, l1DaiWormholeGateway, message);
+    sendTxToL1(msg.sender, l1WormholeGateway, message);
 
     emit WormholeInitialized(wormhole);
   }
 
-  function flush(bytes32 targetDomain) external {
+  function flush(bytes32 targetDomain) external override {
     // We do not check for valid domain because previously valid domains still need their DAI flushed
     uint256 daiToFlush = batchedDaiToFlush[targetDomain];
     require(daiToFlush > 0, "L2DaiWormholeGateway/zero-dai-flush");
@@ -169,11 +167,11 @@ contract L2DaiWormholeGateway is L2CrossDomainEnabled {
     batchedDaiToFlush[targetDomain] = 0;
 
     bytes memory message = abi.encodeWithSelector(
-      L1DaiWormholeGateway.finalizeFlush.selector,
+      IL1WormholeGateway.finalizeFlush.selector,
       targetDomain,
       daiToFlush
     );
-    sendTxToL1(msg.sender, l1DaiWormholeGateway, message);
+    sendTxToL1(msg.sender, l1WormholeGateway, message);
 
     emit Flushed(targetDomain, daiToFlush);
   }
